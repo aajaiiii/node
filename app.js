@@ -6020,16 +6020,228 @@ app.get('/getcaregivesotherpeople/:userId', async (req, res) => {
 
 
 //home
-
 app.get("/immobility/group3", async (req, res) => {
   try {
+    // Find assessments for group 3 based on Immobility totalScore
     const data = await Assessinhomesss.find({
-      "Immobility.totalScore": { $gte: 36, $lte: 48 }, // เงื่อนไขสำหรับกลุ่มที่ 3
-    }).populate("user"); // ดึงข้อมูล user เพิ่มเติม (ถ้าต้องการ)
+      "Immobility.totalScore": { $gte: 36, $lte: 48 }, // Group 3 condition
+    })
+      .populate("user") // Populate user details
+      .lean(); // Use lean() for better performance and easier manipulation
 
-    res.status(200).json({ data });
+    // Get medical information for each user
+    const userIds = data.map((entry) => entry.user._id); // Extract user IDs
+    const medicalData = await mongoose
+      .model("MedicalInformation")
+      .find({ user: { $in: userIds } }) // Find medical info for these users
+      .select("Diagnosis user") // Select only Diagnosis and user fields
+      .lean();
+
+    // Create a map of user IDs to their Diagnosis
+    const diagnosisMap = medicalData.reduce((acc, medical) => {
+      acc[medical.user] = medical.Diagnosis || "ไม่ระบุ";
+      return acc;
+    }, {});
+
+    // Add Diagnosis to each entry in the data
+    const result = data.map((entry) => ({
+      ...entry,
+      Diagnosis: diagnosisMap[entry.user._id] || "ไม่ระบุ",
+    }));
+
+    res.status(200).json({ data: result });
   } catch (error) {
     console.error("Error fetching group 3 data:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+app.get("/immobility/group3/count", async (req, res) => {
+  try {
+    // นับจำนวนผู้ป่วยในกลุ่ม 3
+    const count = await Assessinhomesss.countDocuments({
+      "Immobility.totalScore": { $gte: 36, $lte: 48 }, // เงื่อนไขสำหรับกลุ่ม 3
+    });
+
+    res.status(200).json({ success: true, count });
+  } catch (error) {
+    console.error("Error fetching group 3 count:", error);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+app.get("/assessments/abnormal", async (req, res) => {
+  try {
+    const abnormalCases = await Assessment.find({
+      status_name: { $in: ["ผิดปกติ", "เคสฉุกเฉิน"] },
+    })
+      .populate({
+        path: "PatientForm",
+        populate: {
+          path: "user", // Populate user within PatientForm
+          select: "name surname", // Select name and surname from the User model
+        },
+      })
+      .populate("MPersonnel", "nametitle name surname"); // Optionally populate MPersonnel if required
+
+    res.status(200).json({ success: true, data: abnormalCases });
+  } catch (error) {
+    console.error("Error fetching abnormal cases:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch abnormal cases" });
+  }
+});
+
+app.get("/getpatientform/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const patientForm = await PatientForm.findById(id).populate("user"); // Populate user info
+    if (!patientForm) {
+      return res.status(404).json({ success: false, error: "PatientForm not found" });
+    }
+    res.status(200).json({ success: true, data: patientForm });
+  } catch (error) {
+    console.error("Error fetching PatientForm:", error);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+
+app.get("/assessments/abnormal", async (req, res) => {
+  try {
+      const { from } = req.query;
+      const query = {
+          status_name: { $in: ["ผิดปกติ", "เคสฉุกเฉิน"] },
+      };
+
+      if (from) {
+          query.updatedAt = { $gte: new Date(from) };
+      }
+
+      const abnormalCases = await Assessment.find(query)
+          .populate({
+              path: "PatientForm",
+              populate: {
+                  path: "user",
+                  select: "name surname",
+              },
+          })
+          .populate("MPersonnel", "nametitle name surname")
+          .sort({ updatedAt: -1 }); // เรียงลำดับจากวันที่ใหม่ไปเก่า
+
+      res.status(200).json({ success: true, data: abnormalCases });
+  } catch (error) {
+      console.error("Error fetching abnormal cases:", error);
+      res.status(500).json({ success: false, error: "Failed to fetch abnormal cases" });
+  }
+});
+
+app.get("/assessments/stats", async (req, res) => {
+  try {
+    // นับจำนวนผู้ใช้ทั้งหมด
+    const totalUsers = await User.countDocuments({});
+
+    // นับจำนวน PatientForm ทั้งหมด
+    const totalPatientForms = await PatientForm.countDocuments({});
+
+    // นับจำนวนเคสที่มีสถานะ "ผิดปกติ" หรือ "เคสฉุกเฉิน"
+    const abnormalCasesCount = await Assessment.countDocuments({
+      status_name: { $in: ["ผิดปกติ", "เคสฉุกเฉิน"] },
+    });
+
+    // ส่งผลลัพธ์กลับไป
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalUsers,
+        totalPatientForms,
+        abnormalCasesCount,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching stats:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch stats" });
+  }
+});
+
+app.get("/assessments/countstats", async (req, res) => {
+  try {
+    const totalCases = await Assessment.countDocuments({});
+    const normalCasesCount = await Assessment.countDocuments({ status_name: "ปกติ" });
+    const abnormalCasesCount = await Assessment.countDocuments({ status_name: "ผิดปกติ" });
+    const emergencyCasesCount = await Assessment.countDocuments({ status_name: "เคสฉุกเฉิน" });
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalCases,
+        normalCasesPercentage: ((normalCasesCount / totalCases) * 100).toFixed(2),
+        abnormalCasesPercentage: ((abnormalCasesCount / totalCases) * 100).toFixed(2),
+        emergencyCasesPercentage: ((emergencyCasesCount / totalCases) * 100).toFixed(2),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching stats:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch stats" });
+  }
+});
+
+app.get("/assessments/countcase", async (req, res) => {
+  try {
+    const totalCases = await Assessment.countDocuments({});
+    const normalCasesCount = await Assessment.countDocuments({ status_name: "ปกติ" });
+    const abnormalCasesCount = await Assessment.countDocuments({ status_name: "ผิดปกติ" });
+    const emergencyCasesCount = await Assessment.countDocuments({ status_name: "เคสฉุกเฉิน" });
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalCases, // จำนวนเคสทั้งหมด
+        normalCasesCount, // จำนวนเคสปกติ
+        abnormalCasesCount, // จำนวนเคสผิดปกติ
+        emergencyCasesCount, // จำนวนเคสฉุกเฉิน
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching stats:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch stats" });
+  }
+});
+
+
+app.get("/immobility/groups", async (req, res) => {
+  try {
+    // ดึงข้อมูล Immobility ทั้งหมด
+    const assessments = await Assessinhomesss.find({}).select("Immobility.totalScore");
+
+    // แบ่งข้อมูลเป็นกลุ่มตามเงื่อนไข
+    const groups = {
+      group1: [],
+      group2: [],
+      group3: [],
+    };
+
+    assessments.forEach((assessment) => {
+      const total = assessment.Immobility.totalScore;
+      if (total >= 16 && total <= 20) {
+        groups.group1.push(assessment);
+      } else if (total >= 21 && total <= 35) {
+        groups.group2.push(assessment);
+      } else if (total >= 36 && total <= 48) {
+        groups.group3.push(assessment);
+      }
+    });
+
+    // ส่งผลลัพธ์กลับ
+    res.status(200).json({
+      success: true,
+      data: {
+        group1: groups.group1.length,
+        group2: groups.group2.length,
+        group3: groups.group3.length,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching immobility groups:", error);
+    res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
