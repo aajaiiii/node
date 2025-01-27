@@ -368,7 +368,7 @@ app.post('/verify-otp3', async (req, res) => {
     const isOtpValid = otpRecord.otp === otp && Date.now() - otpRecord.createdAt < 10 * 60 * 1000;
 
     if (!isOtpValid) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
+      return res.status(400).json({ error: 'OTP ไม่ถูกต้องหรือหมดอายุ' });
     }
 
     // อัปเดตสถานะการยืนยันอีเมลและอีเมลของผู้ใช้ โดยใช้ username แทน email
@@ -615,8 +615,10 @@ app.post('/updateequip/:id', async (req, res) => {
     if (!equipment) {
       return res.status(404).json({ error: 'Equipment not found' });
     }
-    if (equipment.equipment_name !== equipment_name) {
-      const existingEquip = await Equipment.findOne({ equipment_name });
+    if (equipment.equipment_name.toLowerCase() !== equipment_name.toLowerCase()) {
+      const existingEquip = await Equipment.findOne({ 
+        equipment_name: { $regex: `^${equipment_name}$`, $options: 'i' } 
+      });
       if (existingEquip) {
         return res.status(400).json({ error: 'ชื่ออุปกรณ์ซ้ำในระบบ กรุณาเปลี่ยนชื่อ' });
       }
@@ -808,7 +810,7 @@ const upload = multer({ storage: storage }).fields([
   { name: "file", maxCount: 1 },
 ]);
 
-app.post("/addcaremanual1", uploadimg.fields([{ name: 'image' }, { name: 'file' }]), async (req, res) => {
+app.post("/addcaremanual", uploadimg.fields([{ name: 'image' }, { name: 'file' }]), async (req, res) => {
   const { caremanual_name, detail } = req.body;
 
   if (!caremanual_name) {
@@ -827,6 +829,7 @@ app.post("/addcaremanual1", uploadimg.fields([{ name: 'image' }, { name: 'file' 
 
     let imageUrl = null;
     let fileUrl = null;
+     let originalFileName = null;
     const bucket = admin.storage().bucket();
     const uploadPromises = [];
 
@@ -858,6 +861,10 @@ app.post("/addcaremanual1", uploadimg.fields([{ name: 'image' }, { name: 'file' 
 
     // อัปโหลดไฟล์ (ถ้ามี)
     if (req.files['file']) {
+      const fileOriginalName = Buffer.from(
+        req.files['file'][0].originalname,
+        "latin1"
+      ).toString("utf8");
       const fileFileName = Date.now() + '-' + req.files['file'][0].originalname;
       const fileFile = bucket.file(fileFileName);
 
@@ -873,6 +880,7 @@ app.post("/addcaremanual1", uploadimg.fields([{ name: 'image' }, { name: 'file' 
 
         fileFileStream.on('finish', () => {
           fileUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileFileName)}?alt=media`;
+          originalFileName = fileOriginalName; 
           resolve();
         });
 
@@ -889,6 +897,7 @@ app.post("/addcaremanual1", uploadimg.fields([{ name: 'image' }, { name: 'file' 
       caremanual_name,
       image: imageUrl,
       file: fileUrl,
+      originalFileName,
       detail,
     });
 
@@ -1094,7 +1103,7 @@ app.post("/addmedicalinformation", upload1, async (req, res) => {
     // Upload fileP to Firebase Storage
     if (req.files["fileP"] && req.files["fileP"][0]) {
       const file = req.files["fileP"][0];
-      const originalName = file.originalname; // เก็บชื่อไฟล์ดั้งเดิม
+      const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
       const fileName = Date.now() + '-' + originalName;
       const fileRef = bucket.file(fileName);
       const fileStream = fileRef.createWriteStream({
@@ -1115,7 +1124,7 @@ app.post("/addmedicalinformation", upload1, async (req, res) => {
     // Upload fileM to Firebase Storage
     if (req.files["fileM"] && req.files["fileM"][0]) {
       const file = req.files["fileM"][0];
-      const originalName = file.originalname;
+      const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
       const fileName = Date.now() + '-' + originalName;
       const fileRef = bucket.file(fileName);
       const fileStream = fileRef.createWriteStream({
@@ -1136,7 +1145,7 @@ app.post("/addmedicalinformation", upload1, async (req, res) => {
     // Upload filePhy to Firebase Storage
     if (req.files["filePhy"] && req.files["filePhy"][0]) {
       const file = req.files["filePhy"][0];
-      const originalName = file.originalname;
+      const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
       const fileName = Date.now() + '-' + originalName;
       const fileRef = bucket.file(fileName);
       const fileStream = fileRef.createWriteStream({
@@ -1366,15 +1375,22 @@ const uploadFiles = (files) => {
   return new Promise((resolve, reject) => {
     let imageUrl = "";
     let fileUrl = "";
-
+    let originalFileName = "";
     const uploadImage = files["image"] && files["image"][0] ? uploadFileToBucket(files["image"][0]) : Promise.resolve("");
-    const uploadFile = files["file"] && files["file"][0] ? uploadFileToBucket(files["file"][0]) : Promise.resolve("");
+    // const uploadFile = files["file"] && files["file"][0] ? uploadFileToBucket(files["file"][0]) : Promise.resolve("");
+
+    const uploadFile = files["file"] && files["file"][0] 
+    ? uploadFileToBucket(files["file"][0]).then(url => {
+        originalFileName = Buffer.from(files["file"][0].originalname, "latin1").toString("utf8");
+        return url;
+      }) 
+    : Promise.resolve("");
 
     Promise.all([uploadImage, uploadFile])
       .then((urls) => {
         imageUrl = urls[0];
         fileUrl = urls[1];
-        resolve({ imageUrl, fileUrl });
+        resolve({ imageUrl, fileUrl, originalFileName });
       })
       .catch((err) => {
         reject(err);
@@ -1407,16 +1423,7 @@ const uploadFileToBucket = (file) => {
   });
 };
 
-// app.get("/check-caremanual-name", async (req, res) => {
-//   const { caremanual_name } = req.query;
-//   try {
-//     const existingCaremanual = await Caremanual.findOne({ caremanual_name });
-//     res.json({ exists: !!existingCaremanual }); // true ถ้าซ้ำ, false ถ้าไม่ซ้ำ
-//   } catch (error) {
-//     console.error("Error checking caremanual name:", error);
-//     res.status(500).json({ message: "Error checking caremanual name" });
-//   }
-// });
+
 
 app.post("/updatecaremanual/:id", uploadimg.fields([{ name: 'image' }, { name: 'file' }]), async (req, res) => {
   const { caremanual_name, detail } = req.body;
@@ -1429,12 +1436,13 @@ app.post("/updatecaremanual/:id", uploadimg.fields([{ name: 'image' }, { name: '
     }
     const files = req.files;
 
-    const { imageUrl, fileUrl } = await uploadFiles(files);
+    const { imageUrl, fileUrl, originalFileName } = await uploadFiles(files);
 
     const updatedData = {
       caremanual_name,
       image: imageUrl || undefined,
       file: fileUrl || undefined,
+      originalFileName: originalFileName || existingCaremanual.originalFileName,
       detail
     };
     
@@ -1855,19 +1863,19 @@ const initializeRooms = async () => {
 initializeRooms();
 //ไปอัปเดตอันที่เคยลบไป
 app.post("/adduser", async (req, res) => {
-  const { username, name, surname, tel, email, physicalTherapy } = req.body;
+  const { username, name, surname, tel, email, physicalTherapy,originalTel } = req.body;
 
   if (!username || !tel || !name || !surname) {
     return res.json({
-      error: "กรุณากรอกเลขประจำตัวประชาชน เบอร์โทรศัพท์ ชื่อและนามสกุล",
+      error: "เลขประจำตัวประชาชน เบอร์โทรศัพท์ ชื่อและนามสกุล ไม่ควรเป็นค่าว่าง",
     });
   }
 
-  if (username.length !== 13) {
-    return res.json({
-      error: "ชื่อผู้ใช้ต้องมีความยาว 13 ตัวอักษร",
-    });
-  }
+  // if (username.length !== 17) {
+  //   return res.json({
+  //     error: "ชื่อผู้ใช้ต้องมีความยาว 13 ตัวอักษร",
+  //   });
+  // }
 
   const encryptedPassword = await bcrypt.hash(tel, 10);
 
@@ -1884,6 +1892,7 @@ app.post("/adduser", async (req, res) => {
       oldUser.surname = surname;
       oldUser.password = encryptedPassword;
       oldUser.tel = tel;
+      oldUser. originalTel = originalTel;
       oldUser.deletedAt = null;
       oldUser.email = email || null;
       oldUser.physicalTherapy = physicalTherapy || false;
@@ -1895,6 +1904,7 @@ app.post("/adduser", async (req, res) => {
         surname,
         password: encryptedPassword,
         tel,
+        originalTel: tel,
         ID_card_number: username,
         email: email || null,
         physicalTherapy: physicalTherapy || false,
@@ -2218,7 +2228,302 @@ app.post("/userdata", async (req, res) => {
 //     return res.status(500).send({ error: 'Error updating user or caregivers' });
 //   }
 // });
-app.post('/updateuserinfo', async (req, res) => {
+
+
+// app.post('/updateuserinfo', async (req, res) => {
+//   const {
+//     username,
+//     name,
+//     surname,
+//     tel,
+//     email,
+//     gender,
+//     birthday,
+//     ID_card_number,
+//     nationality,
+//     Address,
+//     user, // id ของ user
+//     caregivers, // array ของข้อมูลผู้ดูแล
+//   } = req.body;
+
+//   try {
+//     if (username) {
+//       // อัปเดตข้อมูล User
+//       await User.updateOne(
+//         { username },
+//         {
+//           $set: {
+//             name,
+//             surname,
+//             tel,
+//             email,
+//             gender,
+//             birthday,
+//             ID_card_number,
+//             nationality,
+//             Address,
+//             // AdddataFirst: true,
+//           },
+//         }
+//       );
+
+//       // จัดการข้อมูล caregivers
+//       for (const caregiver of caregivers) {
+//         if (caregiver._id) {
+//           // หากมี _id ให้ตรวจสอบและอัปเดตข้อมูลผู้ดูแลที่มีอยู่
+//           const existingCaregiver = await Caregiver.findOne({ _id: caregiver._id });
+//           if (existingCaregiver) {
+//             await Caregiver.updateOne(
+//               { _id: caregiver._id },
+//               {
+//                 $set: {
+//                   name: caregiver.caregivername,
+//                   surname: caregiver.caregiversurname,
+//                   tel: caregiver.caregivertel,
+//                   Relationship: caregiver.Relationship,
+//                 },
+//               }
+//             );
+//           } else {
+//             // หาก _id ไม่ตรงกับข้อมูลใดๆ ในฐานข้อมูล ให้สร้างใหม่
+//             await Caregiver.create({
+//               user,
+//               name: caregiver.caregivername,
+//               surname: caregiver.caregiversurname,
+//               tel: caregiver.caregivertel,
+//               Relationship: caregiver.Relationship,
+//             });
+//           }
+//         } else {
+//           // หากไม่มี _id ให้สร้างข้อมูลผู้ดูแลใหม่
+//           await Caregiver.create({
+//             user,
+//             name: caregiver.caregivername,
+//             surname: caregiver.caregiversurname,
+//             tel: caregiver.caregivertel,
+//             Relationship: caregiver.Relationship,
+//           });
+//         }
+//       }
+
+//       res.send({ status: 'Ok', data: 'User and Caregivers Updated' });
+//     } else {
+//       res.status(400).send({ error: 'Invalid request data' });
+//     }
+//   } catch (error) {
+//     console.error('Error updating user or caregivers:', error);
+//     res.status(500).send({ error: 'Error updating user or caregivers' });
+//   }
+// });
+
+// app.post('/updateuserinfo', async (req, res) => { 
+//   const {
+//     username,
+//     name,
+//     surname,
+//     tel,
+//     email,
+//     gender,
+//     birthday,
+//     ID_card_number,
+//     nationality,
+//     Address,
+//     user, // id ของ user
+//     caregivers, // array ของข้อมูลผู้ดูแล
+//   } = req.body;
+
+//   try {
+//     if (username) {
+//       // อัปเดตข้อมูล User
+//       await User.updateOne(
+//         { username },
+//         {
+//           $set: {
+//             name,
+//             surname,
+//             tel,
+//             email,
+//             gender,
+//             birthday,
+//             ID_card_number,
+//             nationality,
+//             Address,
+//           },
+//         }
+//       );
+
+//       // จัดการข้อมูล caregivers
+//       for (const caregiver of caregivers) {
+//         if (caregiver._id) {
+//           // หากมี _id ให้ตรวจสอบและอัปเดตข้อมูลผู้ดูแลที่มีอยู่
+//           const existingCaregiver = await Caregiver.findOne({ _id: caregiver._id });
+//           if (existingCaregiver) {
+//             // ตรวจสอบว่า userRelationships มีหรือไม่ ก่อนที่จะใช้ map()
+//             const updatedRelationships = Array.isArray(caregiver.userRelationships)
+//               ? caregiver.userRelationships.map(rel => ({
+//                   user: rel.user,
+//                   relationship: rel.relationship,
+//                 }))
+//               : existingCaregiver.userRelationships; // หากไม่มีการเปลี่ยนแปลงให้เก็บค่าเดิม
+
+//             await Caregiver.updateOne(
+//               { _id: caregiver._id },
+//               {
+//                 $set: {
+//                   name: caregiver.caregivername,
+//                   surname: caregiver.caregiversurname,
+//                   tel: caregiver.caregivertel,
+//                   userRelationships: updatedRelationships, // เก็บค่าที่อัปเดตหรือค่าเดิม
+//                 },
+//               }
+//             );
+//           } else {
+//             // หาก _id ไม่ตรงกับข้อมูลใดๆ ในฐานข้อมูล ให้สร้างใหม่
+//             await Caregiver.create({
+//               user,
+//               ID_card_number:caregiver.ID_card_number,
+//               name: caregiver.caregivername,
+//               surname: caregiver.caregiversurname,
+//               tel: caregiver.caregivertel,
+//               userRelationships: caregiver.userRelationships || [
+//                 {
+//                   user: user, // เพิ่ม user ใหม่ที่เชื่อมโยงกับ caregiver
+//                   relationship: caregiver.Relationship || "-", // เพิ่ม relationship (หรือใช้ "-" หากไม่มี)
+//                 },
+//               ],            });
+//           }
+//         } else {
+//           // หากไม่มี _id ให้สร้างข้อมูลผู้ดูแลใหม่
+//           await Caregiver.create({
+//             user,
+//             ID_card_number:caregiver.ID_card_number,
+//             name: caregiver.caregivername,
+//             surname: caregiver.caregiversurname,
+//             tel: caregiver.caregivertel,
+//             userRelationships: caregiver.userRelationships || [
+//               {
+//                 user: user, // เพิ่ม user ใหม่ที่เชื่อมโยงกับ caregiver
+//                 relationship: caregiver.Relationship || "-", // เพิ่ม relationship (หรือใช้ "-" หากไม่มี)
+//               },
+//             ],          });
+//         }
+//       }
+
+//       res.send({ status: 'Ok', data: 'User and Caregivers Updated' });
+//     } else {
+//       res.status(400).send({ error: 'Invalid request data' });
+//     }
+//   } catch (error) {
+//     console.error('Error updating user or caregivers:', error);
+//     res.status(500).send({ error: 'Error updating user or caregivers' });
+//   }
+// });
+
+//เกือบล่าสุด ตอน ID_card_number ตรงกันมันแก้อันนั้นเลย
+// app.post('/updateuserinfo', async (req, res) => { 
+//   const {
+//     username,
+//     name,
+//     surname,
+//     tel,
+//     email,
+//     gender,
+//     birthday,
+//     ID_card_number,
+//     nationality,
+//     Address,
+//     user, // id ของ user
+//     caregivers, // array ของข้อมูลผู้ดูแล
+//   } = req.body;
+
+//   try {
+//     if (username) {
+//       // อัปเดตข้อมูล User
+//       await User.updateOne(
+//         { username },
+//         {
+//           $set: {
+//             name,
+//             surname,
+//             tel,
+//             email,
+//             gender,
+//             birthday,
+//             ID_card_number,
+//             nationality,
+//             Address,
+//           },
+//         }
+//       );
+
+//       // จัดการข้อมูล caregivers
+//       for (const caregiver of caregivers) {
+//         if (caregiver._id) {
+//           // หากมี _id ให้ตรวจสอบและอัปเดตข้อมูลผู้ดูแลที่มีอยู่
+//           const existingCaregiver = await Caregiver.findOne({ _id: caregiver._id });
+//           if (existingCaregiver) {
+//             // ตรวจสอบว่า userRelationships มีหรือไม่ ก่อนที่จะใช้ map()
+//             const updatedRelationships = Array.isArray(caregiver.userRelationships)
+//               ? caregiver.userRelationships.map(rel => ({
+//                   user: rel.user,
+//                   relationship: rel.relationship,
+//                 }))
+//               : existingCaregiver.userRelationships; // หากไม่มีการเปลี่ยนแปลงให้เก็บค่าเดิม
+
+//             await Caregiver.updateOne(
+//               { _id: caregiver._id },
+//               {
+//                 $set: {
+//                   name: caregiver.name,
+//                   surname: caregiver.surname,
+//                   tel: caregiver.tel,
+//                   userRelationships: updatedRelationships, // เก็บค่าที่อัปเดตหรือค่าเดิม
+//                 },
+//               }
+//             );
+//           } else {
+//             // หาก _id ไม่ตรงกับข้อมูลใดๆ ในฐานข้อมูล ให้สร้างใหม่
+//             await Caregiver.create({
+//               user,
+//               ID_card_number:caregiver.ID_card_number,
+//               name: caregiver.name,
+//               surname: caregiver.surname,
+//               tel: caregiver.tel,
+//               userRelationships: caregiver.userRelationships || [
+//                 {
+//                   user: user, // เพิ่ม user ใหม่ที่เชื่อมโยงกับ caregiver
+//                   relationship: caregiver.Relationship || "-", // เพิ่ม relationship (หรือใช้ "-" หากไม่มี)
+//                 },
+//               ],            });
+//           }
+//         } else {
+//           // หากไม่มี _id ให้สร้างข้อมูลผู้ดูแลใหม่
+//           await Caregiver.create({
+//             user,
+//             ID_card_number:caregiver.ID_card_number,
+//             name: caregiver.name,
+//             surname: caregiver.surname,
+//             tel: caregiver.tel,
+//             userRelationships: caregiver.userRelationships || [
+//               {
+//                 user: user, // เพิ่ม user ใหม่ที่เชื่อมโยงกับ caregiver
+//                 relationship: caregiver.Relationship || "-", // เพิ่ม relationship (หรือใช้ "-" หากไม่มี)
+//               },
+//             ],         
+//           });
+//         }
+//       }
+
+//       res.send({ status: 'Ok', data: 'User and Caregivers Updated' });
+//     } else {
+//       res.status(400).send({ error: 'Invalid request data' });
+//     }
+//   } catch (error) {
+//     console.error('Error updating user or caregivers:', error);
+//     res.status(500).send({ error: 'Error updating user or caregivers' });
+//   }
+// });
+app.post('/updateuserinfo', async (req, res) => { 
   const {
     username,
     name,
@@ -2250,50 +2555,81 @@ app.post('/updateuserinfo', async (req, res) => {
             ID_card_number,
             nationality,
             Address,
-            AdddataFirst: true,
           },
         }
       );
-
-      // จัดการข้อมูล caregivers
       for (const caregiver of caregivers) {
         if (caregiver._id) {
           // หากมี _id ให้ตรวจสอบและอัปเดตข้อมูลผู้ดูแลที่มีอยู่
           const existingCaregiver = await Caregiver.findOne({ _id: caregiver._id });
           if (existingCaregiver) {
-            await Caregiver.updateOne(
-              { _id: caregiver._id },
-              {
-                $set: {
-                  name: caregiver.caregivername,
-                  surname: caregiver.caregiversurname,
-                  tel: caregiver.caregivertel,
-                  Relationship: caregiver.Relationship,
-                },
+            // ตรวจสอบว่ามี ID_card_number ตรงกับ caregiver ในระบบหรือไม่
+            if (existingCaregiver.ID_card_number === caregiver.ID_card_number) {
+              // ตรวจสอบว่ามี user อยู่ใน userRelationships หรือไม่
+              const existingRelationship = existingCaregiver.userRelationships.find(
+                (rel) => rel.user.toString() === user
+              );
+      
+              if (!existingRelationship) {
+                // เพิ่ม user ใหม่ใน userRelationships
+                existingCaregiver.userRelationships.push({
+                  user: user,
+                  relationship: caregiver.Relationship || "-", // เพิ่มความสัมพันธ์
+                });
+                await existingCaregiver.save(); // บันทึกการเปลี่ยนแปลง
               }
-            );
-          } else {
-            // หาก _id ไม่ตรงกับข้อมูลใดๆ ในฐานข้อมูล ให้สร้างใหม่
-            await Caregiver.create({
-              user,
-              name: caregiver.caregivername,
-              surname: caregiver.caregiversurname,
-              tel: caregiver.caregivertel,
-              Relationship: caregiver.Relationship,
-            });
+            } else {
+              // อัปเดตข้อมูล caregiver หาก ID_card_number ไม่ตรง
+              await Caregiver.updateOne(
+                { _id: caregiver._id },
+                {
+                  $set: {
+                    name: caregiver.name,
+                    surname: caregiver.surname,
+                    tel: caregiver.tel,
+                  },
+                }
+              );
+            }
           }
         } else {
-          // หากไม่มี _id ให้สร้างข้อมูลผู้ดูแลใหม่
-          await Caregiver.create({
-            user,
-            name: caregiver.caregivername,
-            surname: caregiver.caregiversurname,
-            tel: caregiver.caregivertel,
-            Relationship: caregiver.Relationship,
+          // หากไม่มี _id ให้สร้าง caregiver ใหม่
+          const existingCaregiver = await Caregiver.findOne({
+            ID_card_number: caregiver.ID_card_number,
           });
+      
+          if (existingCaregiver) {
+            // หากมี caregiver อยู่ในระบบที่ ID_card_number ตรงกัน ให้เพิ่ม userRelationships
+            const existingRelationship = existingCaregiver.userRelationships.find(
+              (rel) => rel.user.toString() === user
+            );
+      
+            if (!existingRelationship) {
+              existingCaregiver.userRelationships.push({
+                user: user,
+                relationship: caregiver.Relationship || "-", // เพิ่มความสัมพันธ์
+              });
+              await existingCaregiver.save(); // บันทึกการเปลี่ยนแปลง
+            }
+          } else {
+            // หากไม่มี caregiver ในระบบ ให้สร้างใหม่
+            await Caregiver.create({
+              user,
+              ID_card_number: caregiver.ID_card_number,
+              name: caregiver.name,
+              surname: caregiver.surname,
+              tel: caregiver.tel,
+              userRelationships: [
+                {
+                  user: user,
+                  relationship: caregiver.Relationship || "-", // เพิ่มความสัมพันธ์
+                },
+              ],
+            });
+          }
         }
       }
-
+      
       res.send({ status: 'Ok', data: 'User and Caregivers Updated' });
     } else {
       res.status(400).send({ error: 'Invalid request data' });
@@ -2303,8 +2639,6 @@ app.post('/updateuserinfo', async (req, res) => {
     res.status(500).send({ error: 'Error updating user or caregivers' });
   }
 });
-
-
 //ลืมรหัสผ่าน
 app.post('/forgot-passworduser', async (req, res) => {
   const { email } = req.body;
@@ -2380,63 +2714,64 @@ app.post('/reset-password', async (req, res) => {
 });
 
 
-app.post("/updateuserinfo/:id", async (req, res) => {
-  const {
-    username,
-    name,
-    surname,
-    tel,
-    gender,
-    birthday,
-    ID_card_number,
-    nationality,
-    Address,
-    user,
-    caregiverName,
-    caregiverSurname,
-    caregiverTel,
-    Relationship
-  } = req.body;
+// app.post("/updateuserinfo/:id", async (req, res) => {
+//   const {
+//     username,
+//     name,
+//     surname,
+//     tel,
+//     gender,
+//     birthday,
+//     ID_card_number,
+//     nationality,
+//     Address,
+//     user,
+//     caregiverName,
+//     caregiverSurname,
+//     caregiverTel,
+//     Relationship
+//   } = req.body;
 
-  try {
-    // อัปเดตข้อมูลผู้ใช้
-    await User.updateOne(
-      { username: username },
-      {
-        $set: {
-          name,
-          surname,
-          tel,
-          gender,
-          birthday,
-          ID_card_number,
-          nationality,
-          Address,
-        },
-      }
-    );
+//   try {
+//     // อัปเดตข้อมูลผู้ใช้
+//     await User.updateOne(
+//       { username: username },
+//       {
+//         $set: {
+//           name,
+//           surname,
+//           tel,
+//           gender,
+//           birthday,
+//           ID_card_number,
+//           nationality,
+//           Address,
+//         },
+//       }
+//     );
 
-    // อัปเดตข้อมูลผู้ดูแล
-    if (user) {
-      await Caregiver.updateOne(
-        { user: user },
-        {
-          $set: {
-            name: caregiverName,
-            surname: caregiverSurname,
-            tel: caregiverTel,
-            Relationship,
-          },
-        }
-      );
-    }
+//     // อัปเดตข้อมูลผู้ดูแล
+//     if (user) {
+//       await Caregiver.updateOne(
+//         { user: user },
+//         {
+//           $set: {
+//             name: caregiverName,
+//             surname: caregiverSurname,
+//             tel: caregiverTel,
+//             Relationship,
+//           },
+//         }
+//       );
+//     }
 
-    res.send({ status: "Ok", data: "Updated" });
-  } catch (error) {
-    console.error("Error updating user or caregiver:", error);
-    return res.status(500).send({ error: "Error updating user or caregiver" });
-  }
-});
+//     res.send({ status: "Ok", data: "Updated" });
+//   } catch (error) {
+//     console.error("Error updating user or caregiver:", error);
+//     return res.status(500).send({ error: "Error updating user or caregiver" });
+//   }
+// });
+
 
 //ดึงข้อมูลผู้ดูแล
 // app.get("/getcaregiver/:id", async (req, res) => {
@@ -2448,42 +2783,66 @@ app.post("/updateuserinfo/:id", async (req, res) => {
 //         message: "id is required",
 //       });
 //     }
-//     const Caregiverinfo = await Caregiver.findOne({ user: id });
-//     if (!Caregiverinfo) {
-//       return res
-//         .status(404)
-//         .send({
-//           status: "error",
-//           message: "not found for this user",
-//         });
+//     // ค้นหาผู้ดูแลทั้งหมดที่เกี่ยวข้องกับ user
+//     const caregivers = await Caregiver.find({ user: id });
+//     if (!caregivers || caregivers.length === 0) {
+//       return res.status(404).send({
+//         status: "error",
+//         message: "No caregivers found for this user",
+//       });
 //     }
-//     res.send({ status: "ok", data: Caregiverinfo });
+//     res.send({ status: "ok", data: caregivers });
 //   } catch (error) {
 //     console.log(error);
 //     res.status(500).send({ status: "error", message: "Internal Server Error" });
 //   }
 // });
+
 app.get("/getcaregiver/:id", async (req, res) => {
   const { id } = req.params;
+
   try {
     if (!id) {
       return res.status(400).send({
         status: "error",
-        message: "id is required",
+        message: "ID is required",
       });
     }
-    // ค้นหาผู้ดูแลทั้งหมดที่เกี่ยวข้องกับ user
-    const caregivers = await Caregiver.find({ user: id });
-    if (!caregivers || caregivers.length === 0) {
-      return res.status(404).send({
-        status: "error",
-        message: "No caregivers found for this user",
-      });
-    }
-    res.send({ status: "ok", data: caregivers });
+
+    // ค้นหา caregiver ทั้งหมดที่เกี่ยวข้อง
+    const caregivers = await Caregiver.find(
+      { "userRelationships.user": id } // ค้นหา userRelationships.user ที่ตรงกับ id
+    ).populate("userRelationships.user", "name email"); // Populate user สำหรับข้อมูลเพิ่มเติม
+
+    // if (!caregivers || caregivers.length === 0) {
+    //   return res.status(404).send({
+    //     status: "error",
+    //     message: "No caregivers found for this user",
+    //   });
+    // }
+
+    // กรองเฉพาะ userRelationships ที่เกี่ยวข้องกับ userId
+    const filteredCaregivers = caregivers.map((caregiver) => ({
+      _id: caregiver._id,
+      ID_card_number: caregiver.ID_card_number,
+      name: caregiver.name,
+      surname: caregiver.surname,
+      tel: caregiver.tel,
+      userRelationships: caregiver.userRelationships.filter(
+        (rel) => rel.user._id.toString() === id
+      ),
+    }));
+
+    res.status(200).send({
+      status: "ok",
+      data: filteredCaregivers,
+    });
   } catch (error) {
-    console.log(error);
-    res.status(500).send({ status: "error", message: "Internal Server Error" });
+    console.error("Error fetching caregivers:", error);
+    res.status(500).send({
+      status: "error",
+      message: "Internal Server Error",
+    });
   }
 });
 
@@ -2557,49 +2916,268 @@ app.post("/updateuserapp", async (req, res) => {
 //     return res.status(500).send({ error: "Error updating user" });
 //   }
 // });
+app.get("/getCaregiverById/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const caregiver = await Caregiver.findOne({ ID_card_number: id });
+    if (caregiver) {
+      res.json({ status: "Ok", caregiver });
+    } else {
+      res.json({ status: "Not Found", message: "ไม่พบข้อมูลผู้ดูแล" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "Error", message: "เกิดข้อผิดพลาดในเซิร์ฟเวอร์" });
+  }
+});
+
+
+// app.post("/addcaregiver", async (req, res) => {
+//   const { user, name, surname, tel, Relationship,ID_card_number  } = req.body;
+
+//   if (!user || !name || !surname) {
+//     return res.status(400).send({ error: "ชื่อ และนามสกุล ไม่ควรเป็นค่าว่าง" });
+//   }
+
+//   try {
+//     const existingCaregiver = await Caregiver.findOne({ user, ID_card_number });
+//     if (existingCaregiver) {
+//       return res.status(400).send({
+//         error: "ผู้ป่วยมีผู้ดูแลคนนี้แล้ว",
+//       });
+//     }
+
+//     const newCaregiver = await Caregiver.create({
+//       ID_card_number,
+//       user,
+//       name,
+//       surname,
+//       tel,
+//       Relationship,
+//     });
+
+//     res.send({ status: "Ok", message: "Caregiver added successfully", newCaregiver });
+//   } catch (error) {
+//     console.error("Error adding caregiver:", error);
+//     res.status(500).send({ error: "Error adding caregiver" });
+//   }
+// });
+
+//อันเกือบล่าสุด
+// app.post("/addcaregiver", async (req, res) => {
+//   const { user, name, surname, tel, Relationship, ID_card_number } = req.body;
+
+//   if (!user || !name || !surname) {
+//     return res.status(400).send({ error: "ชื่อ และนามสกุล ไม่ควรเป็นค่าว่าง" });
+//   }
+
+//   try {
+//     const existingCaregiver = await Caregiver.findOne({ ID_card_number });
+
+//     if (existingCaregiver) {
+//       // ถ้ามี Caregiver อยู่แล้ว ให้เช็คว่า user ซ้ำหรือไม่
+//       if (!existingCaregiver.user.includes(user)) {
+//         existingCaregiver.user.push(user); // เพิ่ม user ใหม่ใน array
+//         await existingCaregiver.save();
+//         return res.send({
+//           status: "Ok",
+//           message: "User added to existing caregiver",
+//           existingCaregiver,
+//         });
+//       } else {
+//         return res.status(400).send({ error: "ผู้ป่วยมีผู้ดูแลคนนี้แล้ว" });
+//       }
+//     }
+
+//     // สร้าง Caregiver ใหม่ถ้ายังไม่มี
+//     const newCaregiver = await Caregiver.create({
+//       ID_card_number,
+//       user: [user], // ใส่ user เป็น array
+//       name,
+//       surname,
+//       tel,
+//       Relationship,
+//     });
+
+//     res.send({
+//       status: "Ok",
+//       message: "Caregiver added successfully",
+//       newCaregiver,
+//     });
+//   } catch (error) {
+//     console.error("Error adding caregiver:", error);
+//     res.status(500).send({ error: "Error adding caregiver" });
+//   }
+// });
 app.post("/addcaregiver", async (req, res) => {
-  const { user, name, surname, tel, Relationship } = req.body;
+  const { user, name, surname, tel, Relationship, ID_card_number } = req.body;
 
   if (!user || !name || !surname) {
     return res.status(400).send({ error: "ชื่อ และนามสกุล ไม่ควรเป็นค่าว่าง" });
   }
 
   try {
+    const existingCaregiver = await Caregiver.findOne({ ID_card_number });
+
+    if (existingCaregiver) {
+      // ตรวจสอบว่าผู้ใช้คนนี้มีอยู่แล้วหรือไม่
+      const userExists = existingCaregiver.userRelationships.find(
+        (rel) => rel.user.toString() === user
+      );
+
+      if (!userExists) {
+        existingCaregiver.userRelationships.push({ user, relationship: Relationship });
+        await existingCaregiver.save();
+        return res.send({
+          status: "Ok",
+          message: "User added to existing caregiver with relationship",
+          existingCaregiver,
+        });
+      } else {
+        return res.status(400).send({ error: "ผู้ป่วยมีผู้ดูแลคนนี้แล้ว" });
+      }
+    }
+
+    // สร้าง Caregiver ใหม่ถ้ายังไม่มี
     const newCaregiver = await Caregiver.create({
-      user,
+      ID_card_number,
       name,
       surname,
       tel,
-      Relationship,
+      userRelationships: [{ user, relationship: Relationship }],
     });
 
-    res.send({ status: "Ok", message: "Caregiver added successfully", newCaregiver });
+    res.send({
+      status: "Ok",
+      message: "Caregiver added successfully",
+      newCaregiver,
+    });
   } catch (error) {
     console.error("Error adding caregiver:", error);
     res.status(500).send({ error: "Error adding caregiver" });
   }
 });
 
-app.post("/deletecaregiver", async (req, res) => {
-  const { _id } = req.body;
+// app.post("/deletecaregiver", async (req, res) => {
+//   const { _id } = req.body;
 
-  if (!_id) {
-    return res.status(400).send({ error: "Caregiver ID is required" });
+//   if (!_id) {
+//     return res.status(400).send({ error: "Caregiver ID is required" });
+//   }
+
+//   try {
+//     const deletedCaregiver = await Caregiver.findByIdAndDelete(_id);
+//     if (!deletedCaregiver) {
+//       return res.status(404).send({ error: "Caregiver not found" });
+//     }
+
+//     res.send({ status: "Ok", message: "Caregiver deleted successfully" });
+//   } catch (error) {
+//     console.error("Error deleting caregiver:", error);
+//     res.status(500).send({ error: "Error deleting caregiver" });
+//   }
+// });
+
+//เกือบล่าสุด
+// app.post("/deletecaregiver", async (req, res) => {
+//   const { _id, userId } = req.body;  // รับ userId ของผู้ที่ลบ caregiver
+
+//   if (!_id || !userId) {
+//     return res.status(400).send({ error: "Caregiver ID and User ID are required" });
+//   }
+
+//   try {
+//     const deletedCaregiver = await Caregiver.findById(_id);
+//     if (!deletedCaregiver) {
+//       return res.status(404).send({ error: "Caregiver not found" });
+//     }
+
+//     // ลบ user ออกจาก caregiver.user array
+//     deletedCaregiver.user = deletedCaregiver.user.filter(user => user.toString() !== userId.toString());
+
+//     // ถ้าไม่มี user คนอื่นแล้วใน caregiver ให้ลบ caregiver
+//     if (deletedCaregiver.user.length === 0) {
+//       await Caregiver.findByIdAndDelete(_id);
+//       res.send({ status: "Ok", message: "Caregiver deleted successfully" });
+//     } else {
+//       // ถ้ายังมี user อยู่ใน array ก็ให้เซฟ caregiver ไว้
+//       await deletedCaregiver.save();
+//       res.send({ status: "Ok", message: "User removed from caregiver" });
+//     }
+//   } catch (error) {
+//     console.error("Error deleting caregiver:", error);
+//     res.status(500).send({ error: "Error deleting caregiver" });
+//   }
+// });
+
+app.post("/deletecaregiver", async (req, res) => {
+  const { _id, userId } = req.body; // รับ Caregiver ID และ User ID ที่ต้องการลบ
+
+  if (!_id || !userId) {
+    return res.status(400).send({ error: "Caregiver ID and User ID are required" });
   }
 
   try {
-    const deletedCaregiver = await Caregiver.findByIdAndDelete(_id);
-    if (!deletedCaregiver) {
+    // หา caregiver ที่ต้องการ
+    const caregiver = await Caregiver.findById(_id);
+    if (!caregiver) {
       return res.status(404).send({ error: "Caregiver not found" });
     }
 
-    res.send({ status: "Ok", message: "Caregiver deleted successfully" });
+    // กรอง userRelationships เพื่อลบ userId ออก
+    caregiver.userRelationships = caregiver.userRelationships.filter(
+      (rel) => rel.user.toString() !== userId.toString()
+    );
+
+    // ถ้าไม่มี userRelationships เหลือแล้ว ให้ลบ caregiver
+    if (caregiver.userRelationships.length === 0) {
+      await Caregiver.findByIdAndDelete(_id);
+      return res.send({ status: "Ok", message: "Caregiver deleted successfully" });
+    }
+
+    // ถ้ายังมี userRelationships เหลืออยู่ ให้บันทึกข้อมูลใหม่
+    await caregiver.save();
+    res.send({ status: "Ok", message: "User removed from caregiver" });
   } catch (error) {
     console.error("Error deleting caregiver:", error);
     res.status(500).send({ error: "Error deleting caregiver" });
   }
 });
 
+// app.post("/updatecaregiver", async (req, res) => {
+//   const {
+//     _id,
+//     user,
+//     name,
+//     surname,
+//     tel,
+//     Relationship,
+//   } = req.body;
+
+//   try {
+//     if (!user) {
+//       return res.status(400).send({ error: "User is required" });
+//     }
+//     await Caregiver.updateOne(
+//       { _id: _id }, 
+//       {
+//         $set: {
+//           name,
+//           surname,
+//           tel,
+//           Relationship,
+//           user
+//         },
+//       },
+//     );
+//     res.send({ status: "Ok", data: "Updated" });
+//   } catch (error) {
+//     console.error("Error updating user:", error);
+//     return res.status(500).send({ error: "Error updating user" });
+//   }
+// });
+
+//แก้ไขรหัสผ่าน
 app.post("/updatecaregiver", async (req, res) => {
   const {
     _id,
@@ -2614,17 +3192,18 @@ app.post("/updatecaregiver", async (req, res) => {
     if (!user) {
       return res.status(400).send({ error: "User is required" });
     }
+
+    // ค้นหาข้อมูลของ caregiver และอัปเดต userRelationships
     await Caregiver.updateOne(
-      { _id: _id }, 
+      { _id: _id, "userRelationships.user": user }, // เงื่อนไขในการค้นหา
       {
         $set: {
           name,
           surname,
           tel,
-          Relationship,
-          user
+          "userRelationships.$.relationship": Relationship, // อัปเดต relationship
         },
-      },
+      }
     );
     res.send({ status: "Ok", data: "Updated" });
   } catch (error) {
@@ -2633,7 +3212,6 @@ app.post("/updatecaregiver", async (req, res) => {
   }
 });
 
-//แก้ไขรหัสผ่าน
 app.post("/updatepassuser", async (req, res) => {
   const {
     username,
@@ -4128,7 +4706,7 @@ app.post("/updatemedicalinformation/:id", upload1, async (req, res) => {
 
   if (req.files["fileP"] && req.files["fileP"][0]) {
       const file = req.files["fileP"][0];
-      const originalName = file.originalname; // เก็บชื่อไฟล์ดั้งเดิม
+      const originalName  = Buffer.from(file.originalname, "latin1").toString("utf8");// เก็บชื่อไฟล์ดั้งเดิม
       const fileName = Date.now() + '-' + originalName;
       const fileRef = bucket.file(fileName);
       const fileStream = fileRef.createWriteStream({
@@ -4149,7 +4727,7 @@ app.post("/updatemedicalinformation/:id", upload1, async (req, res) => {
     // Upload fileM to Firebase Storage (if exists)
     if (req.files["fileM"] && req.files["fileM"][0]) {
       const file = req.files["fileM"][0];
-      const originalName = file.originalname;
+      const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
       const fileName = Date.now() + '-' + originalName;
       const fileRef = bucket.file(fileName);
       const fileStream = fileRef.createWriteStream({
@@ -4170,7 +4748,7 @@ app.post("/updatemedicalinformation/:id", upload1, async (req, res) => {
     // Upload filePhy to Firebase Storage (if exists)
     if (req.files["filePhy"] && req.files["filePhy"][0]) {
       const file = req.files["filePhy"][0];
-      const originalName = file.originalname;
+      const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
       const fileName = Date.now() + '-' + originalName;
       const fileRef = bucket.file(fileName);
       const fileStream = fileRef.createWriteStream({
@@ -4368,9 +4946,9 @@ app.post("/addsymptom", async (req, res) => {
   try {
     const oldesymptom = await Symptom.findOne({ name });
 
-    if (!name) {
-      return res.json({ error: "Name cannot be empty" });
-    }
+    // if (!name) {
+    //   return res.json({ error: "Name cannot be empty" });
+    // }
 
     if (oldesymptom) {
       return res.json({ error: "ชื่ออาการนี้มีในระบบแล้ว" });
@@ -5064,7 +5642,7 @@ app.get("/getChatHistory/:roomId", async (req, res) => {
     const { roomId } = req.params;
 
     const chatHistory = await Chat.find({ roomId: roomId }) 
-      .populate("sender", "name username surname") 
+      .populate("sender", "nametitle name username surname") 
       .sort({ createdAt: 1 }); 
     if (!chatHistory || chatHistory.length === 0) {
       return res.json({

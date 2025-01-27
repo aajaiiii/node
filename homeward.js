@@ -96,6 +96,10 @@ const CaremanualScehma = new mongoose.Schema(
     file: String,
     detail: String,
     views: { type: Number, default: 0 },
+    originalFileName: {
+      type: String,
+      required: false,
+    },
   },
   {
     collection: "Caremanual",
@@ -112,6 +116,7 @@ const UserScehma = new mongoose.Schema(
     password: String,
     email: { type: String, sparse: true },
     tel: String,
+    originalTel: { type: String, required: false }, 
     name: String,
     surname: String,
     gender: String,
@@ -136,11 +141,19 @@ mongoose.model("User", UserScehma);
 //ผู้ดูแล
 const CaregiverScehma = new mongoose.Schema(
   {
+    ID_card_number: String,
     name: String,
     surname: String,
-    Relationship: String,
+    // Relationship: String,
     tel: String,
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    userRelationships: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        relationship: String,
+      },
+    ],
+    // user: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // เปลี่ยนเป็น array
+    // user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   {
     collection: "Caregiver",
