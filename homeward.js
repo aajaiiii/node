@@ -412,6 +412,16 @@ const AlertSchema = new mongoose.Schema(
       ref: "User",
       required: true
     },
+    MPersonnel: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MPersonnel",
+      required: false, 
+    },
+    alertType: { // ✅ เพิ่มฟิลด์นี้
+      type: String,
+      enum: ["abnormal", "normal", "assessment"], // ✅ กำหนดค่าที่เป็นไปได้
+      required: true
+    },
     viewedBy: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "MPersonnel"
@@ -425,6 +435,43 @@ const AlertSchema = new mongoose.Schema(
 
 mongoose.model("Alert", AlertSchema);
 
+
+const NotificationSchema = new mongoose.Schema(
+  {
+    patientFormId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PatientForm",
+      required: true
+    },
+    alertMessage: {
+      type: String,
+      required: true
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    createdAtAss: {
+      type: Date,
+      // ลบ default: Date.now ออกไป เพราะจะใช้ค่า createdAt ที่ส่งจาก Assessment
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+    viewedBy: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MPersonnel"
+    }]
+  },
+  {
+    collection: "Notification",
+    timestamps: true,
+  }
+);
+
+mongoose.model("Notification", NotificationSchema);
 
 
 const UserThresholdSchema = new mongoose.Schema({
