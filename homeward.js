@@ -550,7 +550,7 @@ const AssessinhomesssSchema = new mongoose.Schema({
       firstName: { type: String, default: "" }, // เพิ่มฟิลด์นี้
       lastName: { type: String, default: "" },  // เพิ่มฟิลด์นี้
       birthDate: { type: String, default: "" },
-      role: { type: String, default: "" },
+      relationship: { type: String, default: "" },
       occupation: { type: String, default: "" },
       status: { type: String, default: "" },
       education: { type: String, default: "" },
@@ -565,7 +565,7 @@ const AssessinhomesssSchema = new mongoose.Schema({
       firstName: { type: String, default: "" },
       lastName: { type: String, default: "" },
       birthDate: { type: String, default: "" },
-      role: { type: String, default: "" },
+      relationship: { type: String, default: "" },
       occupation: { type: String, default: "" },
       status: { type: String, default: "" },
       education: { type: String, default: "" },

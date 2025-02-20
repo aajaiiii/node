@@ -6141,7 +6141,7 @@ app.post('/submitassessinhome/:id', async (req, res) => {
         firstName: caregiver.name || OtherPeople?.existingCaregivers?.[index]?.firstName || "",
         lastName: caregiver.surname || OtherPeople?.existingCaregivers?.[index]?.lastName || "",
         birthDate: OtherPeople?.existingCaregivers?.[index]?.birthDate || "",
-        role: OtherPeople?.existingCaregivers?.[index]?.role || "",
+        relationship: OtherPeople?.existingCaregivers?.[index]?.relationship || "",
         occupation: OtherPeople?.existingCaregivers?.[index]?.occupation || "",
         status: OtherPeople?.existingCaregivers?.[index]?.status || "",
         education: OtherPeople?.existingCaregivers?.[index]?.education || "",
@@ -6159,7 +6159,7 @@ app.post('/submitassessinhome/:id', async (req, res) => {
       firstName: caregiver.firstName,
       lastName: caregiver.lastName,
       birthDate: caregiver.birthDate,
-      role: caregiver.role,
+      relationship: caregiver.relationship,
       occupation: caregiver.occupation,
       status: caregiver.status,
       education: caregiver.education,
@@ -6222,6 +6222,29 @@ app.post('/submitassessinhome/:id', async (req, res) => {
   } catch (error) {
     console.error('Error saving Assessinhomesss:', error);
     res.status(500).json({ success: false, message: 'Error saving Assessinhomesss', error: error.message });
+  }
+});
+
+//แก้ไขชื่อนามสกุลใน Assessinhomesss ได้
+app.put('/updateCaregiver/:id', async (req, res) => {
+  const caregiverId = req.params.id;
+  const updateData = req.body; // รับข้อมูลที่ต้องการอัปเดต เช่น name, surname
+
+  try {
+      const updatedCaregiver = await Caregiver.findByIdAndUpdate(
+          caregiverId,
+          { $set: updateData }, // ใช้ $set เพื่ออัปเดตเฉพาะฟิลด์ที่ส่งมา
+          { new: true, runValidators: true } // ส่งคืนค่าที่อัปเดตใหม่
+      );
+
+      if (!updatedCaregiver) {
+          return res.status(404).json({ success: false, message: "Caregiver not found" });
+      }
+
+      res.status(200).json({ success: true, message: "Caregiver updated", data: updatedCaregiver });
+  } catch (error) {
+      console.error("Error updating caregiver:", error);
+      res.status(500).json({ success: false, message: "Error updating caregiver", error: error.message });
   }
 });
 
@@ -6366,16 +6389,27 @@ app.post('/updateAgenda/:id', async (req, res) => {
 app.get('/getcaregivers/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const caregivers = await Caregiver.find({ user: userId }, 'name surname');
 
-    // ใช้ Map กรองข้อมูลซ้ำ
-    const uniqueCaregivers = Array.from(new Map(
-      caregivers.map(item => [`${item.name} ${item.surname}`, item])
-    ).values());
+    // ค้นหา Caregiver ที่เกี่ยวข้องกับ userId และดึงเฉพาะฟิลด์ที่ต้องการ
+    const caregivers = await Caregiver.find(
+      { "userRelationships.user": userId }, // ค้นหา userId ใน userRelationships
+      "name surname userRelationships"
+    ).lean(); // .lean() เพื่อให้แก้ไขข้อมูลได้ง่ายขึ้น
+
+    // จัดรูปแบบข้อมูล พร้อมดึง relationship ที่ตรงกับ userId
+    const formattedCaregivers = caregivers.map(caregiver => {
+      const userRel = caregiver.userRelationships.find(rel => rel.user.toString() === userId);
+      return {
+        id: caregiver._id,
+        name: caregiver.name,
+        surname: caregiver.surname,
+        relationship: userRel ? userRel.relationship : "ไม่ระบุ", // ถ้าไม่มี relationship ให้แสดง "ไม่ระบุ"
+      };
+    });
 
     res.status(200).json({
       status: 'ok',
-      data: uniqueCaregivers,
+      data: formattedCaregivers, // ส่งข้อมูลทั้งหมด
     });
   } catch (error) {
     console.error("Error fetching caregivers:", error);
@@ -6385,23 +6419,35 @@ app.get('/getcaregivers/:userId', async (req, res) => {
     });
   }
 });
+
 
 //ดึงชื่อผู้ดูแลมาแสดงหน้า Agenda
 app.get('/getCaregiverstoAgenda/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // ดึงข้อมูล Caregiver ของ User นี้
-    const caregivers = await Caregiver.find({ user: userId }, 'id name surname');
+    // ดึงข้อมูล Caregiver ที่มี userId อยู่ใน userRelationships
+    const caregivers = await Caregiver.find(
+      { "userRelationships.user": userId }, 
+      'id name surname userRelationships'
+    );
 
-    // กรอง Caregiver ที่ชื่อ-นามสกุลซ้ำ
-    const uniqueCaregivers = Array.from(new Map(
-      caregivers.map(item => [`${item.name} ${item.surname}`, item])
-    ).values());
+    // กรองเฉพาะ relationship ที่ตรงกับ userId
+    const formattedCaregivers = caregivers.map(caregiver => {
+      // ค้นหา relationship ที่สัมพันธ์กับ userId ที่กำหนด
+      const userRel = caregiver.userRelationships.find(rel => rel.user.toString() === userId);
+
+      return {
+        id: caregiver.id,
+        firstName: caregiver.name,
+        lastName: caregiver.surname,
+        relationship: userRel ? userRel.relationship : "ไม่ระบุ" // ถ้าไม่มีให้แสดง "ไม่ระบุ"
+      };
+    });
 
     res.status(200).json({
       status: 'ok',
-      data: uniqueCaregivers,
+      data: formattedCaregivers, 
     });
   } catch (error) {
     console.error("Error fetching caregivers:", error);
@@ -6411,6 +6457,7 @@ app.get('/getCaregiverstoAgenda/:userId', async (req, res) => {
     });
   }
 });
+
 
 
 //ดึง caregiver ทั้งหมดที่มี เพื่อบันทึกลงอีกตาราง
@@ -6418,8 +6465,11 @@ app.get('/getCaregiversByUser/:userId', async (req, res) => {
   const userId = req.params.userId; // รับ userId จาก URL parameter
 
   try {
-    // ค้นหา Caregiver ที่เกี่ยวข้องกับ userId
-    const caregivers = await Caregiver.find({ user: userId }, '_id');
+    // ค้นหา Caregiver ที่ userRelationships.user ตรงกับ userId
+    const caregivers = await Caregiver.find(
+      { "userRelationships.user": userId }, // เงื่อนไขการค้นหา
+      '_id' // ดึงเฉพาะฟิลด์ _id
+    );
 
     // ตรวจสอบว่าพบข้อมูลหรือไม่
     if (!caregivers || caregivers.length === 0) {
@@ -6437,6 +6487,7 @@ app.get('/getCaregiversByUser/:userId', async (req, res) => {
   }
 });
 
+
 //Agenda
 app.get('/getcaregivesotherpeople/:userId', async (req, res) => {
   try {
@@ -6449,12 +6500,13 @@ app.get('/getcaregivesotherpeople/:userId', async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'User not found' });
     }
 
-    // รวมข้อมูล newCaregivers จากทุกเอกสาร
+    // รวมข้อมูล newCaregivers พร้อมดึง relationship
     const newCaregivers = users.flatMap((user) =>
       user?.OtherPeople?.newCaregivers?.map((caregiver) => ({
         id: caregiver?._id,
-        firstName: `${caregiver?.firstName || 'Unknown'} `,
-        lastName: `${caregiver?.lastName || 'Unknown'}`,
+        firstName: caregiver?.firstName || 'Unknown',
+        lastName: caregiver?.lastName || 'Unknown',
+        relationship: caregiver?.relationship || 'ไม่ระบุ', // ใช้ relationship เป็น relationship
       })) || []
     );
 
@@ -6496,7 +6548,7 @@ app.get("/immobility/group3", async (req, res) => {
       acc[medical.user] = medical.Diagnosis || "ไม่ระบุ";
       return acc;
     }, {});
-
+[]
     // Add Diagnosis to each entry in the data
     const result = data.map((entry) => ({
       ...entry,
