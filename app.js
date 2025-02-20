@@ -115,21 +115,39 @@ cron.schedule("0 0 * * *", async () => {
 });
 
 app.post("/addadmin", async (req, res) => {
+  console.log("✅ บัญชีถูกสร้างแล้ว เตรียมส่งอีเมล...");
   const { username, name, surname, email, password, confirmPassword } = req.body;
+
   if (!username || !password || !email) {
     return res.json({ error: "กรุณากรอกชื่อผู้ใช้ รหัสผ่าน และอีเมล" });
   }
+
+  if (password !== confirmPassword) {
+    return res.json({ error: "รหัสผ่านไม่ตรงกัน" });
+  }
+
   const encryptedPassword = await bcrypt.hash(password, 10);
+
   try {
-    const oldUser = await Admins.findOne({ username });
-    //ชื่อมีในระบบไหม
+    const oldUser = await Admins.findOne({ 
+      username: { $regex: `^${username}$`, $options: 'i' }
+    });
+
     if (oldUser) {
       return res.json({ error: "มีชื่อผู้ใช้นี้อยู่ในระบบแล้ว" });
     }
 
-    if (password !== confirmPassword) {
-      return res.json({ error: "รหัสผ่านไม่ตรงกัน" });
+  // ตรวจสอบว่าอีเมลถูกใช้งานแล้วและมีการยืนยันหรือไม่
+  const existingUser = await Admins.findOne({ email });
+
+  if (existingUser) {
+    if (existingUser.isEmailVerified) {
+      // ถ้าอีเมลถูกยืนยันแล้ว
+      return res.json({ error: "อีเมลนี้ถูกยืนยันแล้ว ไม่สามารถเพิ่มบัญชีใหม่ได้" });
     }
+    // ถ้ายังไม่ได้ยืนยันอีเมล
+    return res.json({ error: "อีเมลนี้ถูกใช้งานแล้วแต่ยังไม่ได้ยืนยัน" });
+  }
     await Admins.create({
       username,
       name,
@@ -137,9 +155,65 @@ app.post("/addadmin", async (req, res) => {
       email,
       password: encryptedPassword,
     });
-    res.send({ status: "ok" });
+
+    console.log("บัญชีถูกสร้างแล้ว เตรียมส่งอีเมล...");
+    console.log("Email User:", process.env.EMAIL_USER);
+    console.log("Email Pass:", process.env.EMAIL_PASS ? "******" : "ไม่มีค่ารหัสผ่าน");
+
+    const transporter = nodemailer.createTransport({
+      service: "Gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    transporter.verify((error, success) => {
+      if (error) {
+        console.error("SMTP Error:", error);
+      } else {
+        console.log("SMTP Server พร้อมใช้งาน");
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "บัญชีผู้ดูแลระบบของคุณถูกสร้างแล้ว",
+      html: `
+        <html>
+          <body style="font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              <div style="text-align: center;">
+                <img src="https://firebasestorage.googleapis.com/v0/b/homeward-422311.appspot.com/o/logo.png?alt=media&token=04915a2e-dad3-4a49-a451-291b047c366d" alt="Homeward Logo" style="width: 50%; margin-bottom: 10px;" />
+              </div>
+              <h2 style="color: #333;">สวัสดี ${name} ${surname},</h2>
+              <p style="color: #555; font-size: 16px;">บัญชีแอดมินของคุณถูกสร้างแล้ว กรุณาใช้ข้อมูลต่อไปนี้เพื่อเข้าสู่ระบบ:</p>
+              <ul style="color: #555; font-size: 16px; list-style-type: none; padding-left: 0;">
+                <li><b>ชื่อผู้ใช้:</b> ${username}</li>
+                <li><b>รหัสผ่าน:</b> ${password}</li>
+              </ul>
+              <p style="color: #555; font-size: 16px;">กรุณาเปลี่ยนรหัสผ่านทันทีหลังจากเข้าสู่ระบบ</p>
+              <p style="color: #555; font-size: 16px;">ขอบคุณ,</p>
+              <p style="color: #555; font-size: 16px;">ทีมงาน Homeward</p>
+              <div style="border-top: 1px solid #ddd; margin-top: 30px; padding-top: 20px; text-align: center;">
+                <p style="color: #888; font-size: 14px;">หากคุณมีคำถามหรือต้องการความช่วยเหลือ โปรดติดต่อเราได้ที่ <a href="mailto:support@homeward.com" style="color: #1d72b8;">sasithorn.sor@kkumail.com</a></p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `,
+    };
+    
+
+    // ส่งอีเมล
+    const info = await transporter.sendMail(mailOptions);
+    // console.log("✅ อีเมลถูกส่งแล้ว:", info.response);
+
+    res.send({ status: "ok", message: "เพิ่มแอดมินและส่งอีเมลเรียบร้อย" });
   } catch (error) {
-    res.send({ status: "error" });
+    console.error("❌ เกิดข้อผิดพลาด:", error);
+    res.send({ status: "error", message: "เกิดข้อผิดพลาด" });
   }
 });
 
@@ -637,8 +711,9 @@ app.post('/updateequip/:id', async (req, res) => {
 app.post("/addequip", async (req, res) => {
   const { equipment_name, equipment_type } = req.body;
   try {
-    const oldequipment = await Equipment.findOne({ equipment_name });
-
+    const oldequipment = await Equipment.findOne({ 
+      equipment_name: { $regex: `^${equipment_name}$`, $options: 'i' } 
+    });
     if (oldequipment) {
       return res.json({ error: "Equipment Exists" });
     }
@@ -739,33 +814,94 @@ app.post("/addmpersonnel", async (req, res) => {
   try {
     const oldUser = await MPersonnel.findOne({ username });
 
-    // ตรวจสอบว่าชื่อผู้ใช้นี้มีอยู่ในระบบแล้วหรือยัง
     if (oldUser) {
-      return res.json({ error: "มีชื่อผู้ใช้นี้อยู่ในระบบแล้ว" });
+      return res.json({ error: "มีเลขที่ใบประกอบวิชาชีพนี้อยู่ในระบบแล้ว" });
+    }
+    const existingUser = await MPersonnel.findOne({ email });
+
+    if (existingUser) {
+      if (existingUser.isEmailVerified) {
+        return res.json({ error: "อีเมลนี้ถูกยืนยันแล้ว ไม่สามารถเพิ่มบัญชีใหม่ได้" });
+      }
+      return res.json({ error: "อีเมลนี้ถูกใช้งานแล้วแต่ยังไม่ได้ยืนยัน" });
     }
 
-    // สร้างผู้ใช้ใหม่
-    await MPersonnel.create({
+    const newMPersonnel = await MPersonnel.create({
       username,
-      password: encryptedPassword, // ใช้เบอร์โทรเป็นรหัสผ่านที่เข้ารหัสแล้ว
+      password: encryptedPassword, 
       email,
-      tel, // เก็บเบอร์โทรไว้ในฐานข้อมูล
+      tel,
       nametitle,
       name,
       surname,
     });
 
-        // ดึงผู้ป่วยทั้งหมดจากระบบ
+
+
         const allUsers = await User.find({ deletedAt: null });
   
         for (const user of allUsers) {
           const room = await Room.findOne({ roomId: user._id });
     
           if (room) {
-            room.participants.push({ id: MPersonnel._id, model: "MPersonnel" }); // เพิ่มแพทย์เข้าไปใน Room
-            await room.save(); // บันทึกการเปลี่ยนแปลง Room
+            room.participants.push({ id: newMPersonnel._id, model: "MPersonnel" }); // ใช้ newMPersonnel._id
+            await room.save();
           }
         }
+
+           console.log("บัญชีถูกสร้างแล้ว เตรียมส่งอีเมล...");
+            console.log("Email User:", process.env.EMAIL_USER);
+            console.log("Email Pass:", process.env.EMAIL_PASS ? "******" : "ไม่มีค่ารหัสผ่าน");
+        
+            const transporter = nodemailer.createTransport({
+              service: "Gmail",
+              auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+              },
+            });
+        
+            transporter.verify((error, success) => {
+              if (error) {
+                console.error("SMTP Error:", error);
+              } else {
+                console.log("SMTP Server พร้อมใช้งาน");
+              }
+            });
+        
+            const mailOptions = {
+              from: process.env.EMAIL_USER,
+              to: email,
+              subject: "บัญชีบุคลากรทางการแพทย์ของคุณถูกสร้างแล้ว",
+              html: `
+                <html>
+                  <body style="font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px;">
+                    <div style="max-width: 600px; margin: 0 auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                      <div style="text-align: center;">
+                        <img src="https://firebasestorage.googleapis.com/v0/b/homeward-422311.appspot.com/o/logo.png?alt=media&token=04915a2e-dad3-4a49-a451-291b047c366d" alt="Homeward Logo" style="width: 50%; margin-bottom: 10px;" />
+                      </div>
+                      <h2 style="color: #333;">สวัสดี ${name} ${surname},</h2>
+                      <p style="color: #555; font-size: 16px;">บัญชีบุคลากรทางการแพทย์ของคุณถูกสร้างแล้ว กรุณาใช้ข้อมูลต่อไปนี้เพื่อเข้าสู่ระบบ:</p>
+                      <ul style="color: #555; font-size: 16px; list-style-type: none; padding-left: 0;">
+                        <li><b>ชื่อผู้ใช้:</b> ${username}</li>
+                        <li><b>รหัสผ่าน:</b> ${tel}</li>
+                      </ul>
+                      <p style="color: #555; font-size: 16px;">กรุณาเปลี่ยนรหัสผ่านทันทีหลังจากเข้าสู่ระบบ</p>
+                      <p style="color: #555; font-size: 16px;">ขอบคุณ,</p>
+                      <p style="color: #555; font-size: 16px;">ทีมงาน Homeward</p>
+                      <div style="border-top: 1px solid #ddd; margin-top: 30px; padding-top: 20px; text-align: center;">
+                        <p style="color: #888; font-size: 14px;">หากคุณมีคำถามหรือต้องการความช่วยเหลือ โปรดติดต่อเราได้ที่ <a href="mailto:support@homeward.com" style="color: #1d72b8;">sasithorn.sor@kkumail.com</a></p>
+                      </div>
+                    </div>
+                  </body>
+                </html>
+              `,
+            };
+            
+        
+            // ส่งอีเมล
+            const info = await transporter.sendMail(mailOptions);
+            // console.log("✅ อีเมลถูกส่งแล้ว:", info.response);
     res.send({ status: "ok" });
   } catch (error) {
     res.send({ status: "error", error: error.message });
@@ -822,7 +958,9 @@ app.post("/addcaremanual", uploadimg.fields([{ name: 'image' }, { name: 'file' }
   }
 
   try {
-    const existingCareManual = await Caremanual.findOne({ caremanual_name });
+    const existingCareManual = await Caremanual.findOne({ 
+    caremanual_name : { $regex: `^${caremanual_name}$`, $options: 'i' }
+  });
     if (existingCareManual) {
       return res.status(400).json({ error: "หัวข้อนี้มีอยู่แล้ว กรุณาใช้หัวข้ออื่น" });
     }
@@ -890,7 +1028,6 @@ app.post("/addcaremanual", uploadimg.fields([{ name: 'image' }, { name: 'file' }
       uploadPromises.push(fileUploadPromise);
     }
 
-    // รอให้การอัปโหลดทั้งภาพและไฟล์เสร็จสิ้นก่อนบันทึกข้อมูลและส่ง response
     await Promise.all(uploadPromises);
 
     const newCare = new Caremanual({
@@ -913,17 +1050,11 @@ app.delete("/remove-image/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    // ค้นหาข้อมูลของคู่มือที่ต้องการลบรูปภาพ
     const caremanual = await Caremanual.findById(id);
     if (!caremanual) {
       return res.status(404).json({ message: "ไม่พบข้อมูลคู่มือ" });
     }
 
-    // ลบไฟล์รูปภาพจาก Cloud Storage หรือที่เก็บรูปภาพของคุณ
-    // ตัวอย่างเช่น ถ้าใช้ Firebase หรือ S3 ของ AWS ต้องเรียกฟังก์ชันเพื่อลบที่นี่
-    // await deleteImageFromCloud(caremanual.image); // สมมติว่ามีฟังก์ชันนี้
-
-    // ลบข้อมูลรูปภาพจากฐานข้อมูล
     caremanual.image = null;
     await caremanual.save();
 
@@ -939,17 +1070,11 @@ app.delete("/remove-file/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    // ค้นหาข้อมูลของคู่มือที่ต้องการลบไฟล์
     const caremanual = await Caremanual.findById(id);
     if (!caremanual) {
       return res.status(404).json({ message: "ไม่พบข้อมูลคู่มือ" });
     }
 
-    // ลบไฟล์จาก Cloud Storage หรือที่เก็บไฟล์ของคุณ
-    // ตัวอย่างเช่น ถ้าใช้ Firebase หรือ S3 ของ AWS ต้องเรียกฟังก์ชันเพื่อลบที่นี่
-    // await deleteFileFromCloud(caremanual.file); // สมมติว่ามีฟังก์ชันนี้
-
-    // ลบข้อมูลไฟล์จากฐานข้อมูล
     caremanual.file = null;
     await caremanual.save();
 
@@ -1208,9 +1333,363 @@ app.get("/medicalInformation/:id", async (req, res) => {
     res.status(500).send({ status: "error", message: "Internal Server Error" });
   }
 });
+//แสดงแล้วแต่ ไม่มีบันทึกมันก็แสดงยังไม่มีประเมิน
+// app.get("/latest-assessments", async (req, res) => {
+//   try {
+//     const result = await User.aggregate([
+//       // 🔹 Join กับ PatientForm (หาข้อมูลฟอร์มของผู้ใช้)
+//       {
+//         $lookup: {
+//           from: "PatientForm",
+//           localField: "_id",
+//           foreignField: "user",
+//           as: "patientForms"
+//         }
+//       },
+//       { $unwind: { path: "$patientForms", preserveNullAndEmptyArrays: true } },
+
+//       // 🔹 Join กับ Assessment (หาข้อมูลการประเมิน)
+//       {
+//         $lookup: {
+//           from: "Assessment",
+//           localField: "patientForms._id",
+//           foreignField: "PatientForm",
+//           as: "assessments"
+//         }
+//       },
+//       { $unwind: { path: "$assessments", preserveNullAndEmptyArrays: true } },
+
+//       // 🔹 เลือกเฉพาะข้อมูลล่าสุดของ Assessment
+//       { $sort: { "assessments.createdAt": -1 } },
+
+//       // 🔹 Group ข้อมูล เพื่อให้มีแค่ 1 record ต่อ User
+//       {
+//         $group: {
+//           _id: "$_id",
+//           username: { $first: "$username" },
+//           latestStatusName: { $first: "$assessments.status_name" }
+//         }
+//       }
+//     ]);
+
+//     res.json({ status: "ok", data: result });
+//   } catch (error) {
+//     console.error("Error fetching assessments:", error);
+//     res.status(500).json({ status: "error", message: "Internal Server Error" });
+//   }
+// });
 
 
 // // ดึงข้อมูลผู้ป่วยมาโชว์
+
+//ได้แล้ว แต่อยากแก้ให้แสดงสัญญาชีพ
+// app.get("/latest-assessments1", async (req, res) => {
+//   try {
+//     const result = await User.aggregate([
+//       // 🔹 Join กับ PatientForm (ดึงข้อมูลฟอร์มของผู้ใช้)
+//       {
+//         $lookup: {
+//           from: "PatientForm",
+//           localField: "_id",
+//           foreignField: "user",
+//           as: "patientForms"
+//         }
+//       },
+//       { $unwind: { path: "$patientForms", preserveNullAndEmptyArrays: true } },
+
+//       // 🔹 Join กับ Assessment (ดึงข้อมูลการประเมิน)
+//       {
+//         $lookup: {
+//           from: "Assessment",
+//           localField: "patientForms._id",
+//           foreignField: "PatientForm",
+//           as: "assessments"
+//         }
+//       },
+//       { $unwind: { path: "$assessments", preserveNullAndEmptyArrays: true } },
+
+//       // 🔹 เลือกเฉพาะข้อมูลล่าสุดของ Assessment
+//       { $sort: { "assessments.createdAt": -1 } },
+
+//       // 🔹 Group ข้อมูล เพื่อให้มีแค่ 1 record ต่อ User
+//       {
+//         $group: {
+//           _id: "$_id",
+//           username: { $first: "$username" },
+//           patientFormExists: { $first: { $cond: { if: { $ifNull: ["$patientForms", false] }, then: true, else: false } } },
+//           latestStatusName: { $first: "$assessments.status_name" }
+//         }
+//       },
+
+//       // 🔹 แก้ค่า latestStatusName ตามเงื่อนไข
+//       {
+//         $project: {
+//           _id: 1,
+//           username: 1,
+//           latestStatusName: {
+//             $cond: {
+//               if: { $eq: ["$patientFormExists", false] },
+//               then: "ยังไม่มีการบันทึก",
+//               else: { $ifNull: ["$latestStatusName", "รอประเมิน"] }
+//             }
+//           }
+//         }
+//       }
+//     ]);
+
+//     res.json({ status: "ok", data: result });
+//   } catch (error) {
+//     console.error("Error fetching assessments:", error);
+//     res.status(500).json({ status: "error", message: "Internal Server Error" });
+//   }
+// });
+//มันเอาass ล่าสุดมาแสดงทุกอัน
+// app.get("/latest-assessments", async (req, res) => { 
+//   try {
+//     const result = await User.aggregate([
+//       // 🔹 Join กับ PatientForm
+//       {
+//         $lookup: {
+//           from: "PatientForm",
+//           localField: "_id",
+//           foreignField: "user",
+//           as: "patientForms"
+//         }
+//       },
+//       { $unwind: { path: "$patientForms", preserveNullAndEmptyArrays: true } },
+
+//       // 🔹 Join กับ Assessment
+//       {
+//         $lookup: {
+//           from: "Assessment",
+//           localField: "patientForms._id",
+//           foreignField: "PatientForm",
+//           as: "assessments"
+//         }
+//       },
+//       { $unwind: { path: "$assessments", preserveNullAndEmptyArrays: true } },
+
+//       // 🔹 Join กับ UserThresholds
+//       {
+//         $lookup: {
+//           from: "UserThresholds",
+//           localField: "_id",
+//           foreignField: "user",
+//           as: "thresholds"
+//         }
+//       },
+//       { $unwind: { path: "$thresholds", preserveNullAndEmptyArrays: true } },
+
+//       // 🔹 ตรวจสอบว่าค่าของ PatientForm อยู่ในช่วง UserThresholds หรือไม่
+//       {
+//         $addFields: {
+//           isAbnormal: {
+//             $or: [
+//               { $lt: ["$patientForms.SBP", "$thresholds.SBP.min"] },
+//               { $gt: ["$patientForms.SBP", "$thresholds.SBP.max"] },
+//               { $lt: ["$patientForms.DBP", "$thresholds.DBP.min"] },
+//               { $gt: ["$patientForms.DBP", "$thresholds.DBP.max"] },
+//               { $lt: ["$patientForms.PulseRate", "$thresholds.PulseRate.min"] },
+//               { $gt: ["$patientForms.PulseRate", "$thresholds.PulseRate.max"] },
+//               { $lt: ["$patientForms.Temperature", "$thresholds.Temperature.min"] },
+//               { $gt: ["$patientForms.Temperature", "$thresholds.Temperature.max"] },
+//               { $lt: ["$patientForms.DTX", "$thresholds.DTX.min"] },
+//               { $gt: ["$patientForms.DTX", "$thresholds.DTX.max"] },
+//               { $lt: ["$patientForms.Respiration", "$thresholds.Respiration.min"] },
+//               { $gt: ["$patientForms.Respiration", "$thresholds.Respiration.max"] }
+//             ]
+//           }
+//         }
+//       },
+
+//       // 🔹 เลือกเฉพาะข้อมูลล่าสุดของ Assessment
+//       { $sort: { "assessments.createdAt": -1 } },
+
+//       // 🔹 Group ข้อมูลให้มีแค่ 1 record ต่อ User
+//       {
+//         $group: {
+//           _id: "$_id",
+//           username: { $first: "$username" },
+//           patientFormExists: { 
+//             $first: { 
+//               $cond: { if: { $ifNull: ["$patientForms", false] }, then: true, else: false } 
+//             } 
+//           },
+//           latestAssessmentStatus: { $first: "$assessments.status_name" },
+//           isAbnormal: { $first: "$isAbnormal" }
+//         }
+//       },
+
+//       // 🔹 ปรับค่า latestStatusName ตามลำดับความสำคัญ
+//       {
+//         $project: {
+//           _id: 1,
+//           username: 1,
+//           latestStatusName: {
+//             $cond: {
+//               if: { $eq: ["$patientFormExists", false] },
+//               then: "ยังไม่มีการบันทึก",
+//               else: {
+//                 $cond: {
+//                   if: { $ifNull: ["$latestAssessmentStatus", false] }, // ถ้ามี status_name แล้ว
+//                   then: "$latestAssessmentStatus", // ใช้ status_name ที่มีอยู่
+//                   else: {
+//                     $cond: {
+//                       if: "$isAbnormal",
+//                       then: "สัญญาณชีพผิดปกติ",
+//                       else: "สัญญาณชีพปกติ"
+//                     }
+//                   }
+//                 }
+//               }
+//             }
+//           }
+//         }
+//       }
+//     ]);
+
+//     res.json({ status: "ok", data: result });
+//   } catch (error) {
+//     console.error("Error fetching assessments:", error);
+//     res.status(500).json({ status: "error", message: "Internal Server Error" });
+//   }
+// });
+app.get("/latest-assessments", async (req, res) => { 
+  try {
+    const result = await User.aggregate([
+      // 🔹 Join กับ PatientForm และเลือกอันล่าสุดก่อน
+      {
+        $lookup: {
+          from: "PatientForm",
+          localField: "_id",
+          foreignField: "user",
+          as: "patientForms"
+        }
+      },
+      { $unwind: { path: "$patientForms", preserveNullAndEmptyArrays: true } },
+      { $sort: { "patientForms.createdAt": -1 } }, // ✅ เรียงให้ PatientForm ล่าสุดมาก่อน
+
+      // 🔹 Join กับ Assessment (ล่าสุดของ PatientForm ที่เลือก)
+      {
+        $lookup: {
+          from: "Assessment",
+          let: { patientFormId: "$patientForms._id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$PatientForm", "$$patientFormId"] } } },
+            { $sort: { "createdAt": -1 } }, // ✅ เรียงให้ Assessment ล่าสุดมาก่อน
+            { $limit: 1 } // ✅ เอาเฉพาะ 1 รายการล่าสุด
+          ],
+          as: "latestAssessment"
+        }
+      },
+      { $unwind: { path: "$latestAssessment", preserveNullAndEmptyArrays: true } },
+
+      // 🔹 Join กับ UserThresholds
+      {
+        $lookup: {
+          from: "UserThresholds",
+          localField: "_id",
+          foreignField: "user",
+          as: "thresholds"
+        }
+      },
+      { $unwind: { path: "$thresholds", preserveNullAndEmptyArrays: true } },
+
+      // 🔹 ตรวจสอบค่าสัญญาณชีพว่าเกินค่าปกติหรือไม่
+      // {
+      //   $addFields: {
+      //     isAbnormal: {
+      //       $or: [
+      //         { $lt: ["$patientForms.SBP", "$thresholds.SBP.min"] },
+      //         { $gt: ["$patientForms.SBP", "$thresholds.SBP.max"] },
+      //         { $lt: ["$patientForms.DBP", "$thresholds.DBP.min"] },
+      //         { $gt: ["$patientForms.DBP", "$thresholds.DBP.max"] },
+      //         { $lt: ["$patientForms.PulseRate", "$thresholds.PulseRate.min"] },
+      //         { $gt: ["$patientForms.PulseRate", "$thresholds.PulseRate.max"] },
+      //         { $lt: ["$patientForms.Temperature", "$thresholds.Temperature.min"] },
+      //         { $gt: ["$patientForms.Temperature", "$thresholds.Temperature.max"] },
+      //         { $lt: ["$patientForms.DTX", "$thresholds.DTX.min"] },
+      //         { $gt: ["$patientForms.DTX", "$thresholds.DTX.max"] },
+      //         { $lt: ["$patientForms.Respiration", "$thresholds.Respiration.min"] },
+      //         { $gt: ["$patientForms.Respiration", "$thresholds.Respiration.max"] }
+      //       ]
+      //     }
+      //   }
+      // },
+// 🔹 ตรวจสอบค่าสัญญาณชีพว่าเกินค่าปกติหรือไม่
+{
+  $addFields: {
+    isAbnormal: {
+      $or: [
+        { $and: [{ $ne: ["$patientForms.SBP", null] }, { $lt: ["$patientForms.SBP", "$thresholds.SBP.min"] }] },
+        { $and: [{ $ne: ["$patientForms.SBP", null] }, { $gt: ["$patientForms.SBP", "$thresholds.SBP.max"] }] },
+        { $and: [{ $ne: ["$patientForms.DBP", null] }, { $lt: ["$patientForms.DBP", "$thresholds.DBP.min"] }] },
+        { $and: [{ $ne: ["$patientForms.DBP", null] }, { $gt: ["$patientForms.DBP", "$thresholds.DBP.max"] }] },
+        { $and: [{ $ne: ["$patientForms.PulseRate", null] }, { $lt: ["$patientForms.PulseRate", "$thresholds.PulseRate.min"] }] },
+        { $and: [{ $ne: ["$patientForms.PulseRate", null] }, { $gt: ["$patientForms.PulseRate", "$thresholds.PulseRate.max"] }] },
+        { $and: [{ $ne: ["$patientForms.Temperature", null] }, { $lt: ["$patientForms.Temperature", "$thresholds.Temperature.min"] }] },
+        { $and: [{ $ne: ["$patientForms.Temperature", null] }, { $gt: ["$patientForms.Temperature", "$thresholds.Temperature.max"] }] },
+        { $and: [{ $ne: ["$patientForms.DTX", null] }, { $lt: ["$patientForms.DTX", "$thresholds.DTX.min"] }] },
+        { $and: [{ $ne: ["$patientForms.DTX", null] }, { $gt: ["$patientForms.DTX", "$thresholds.DTX.max"] }] },
+        { $and: [{ $ne: ["$patientForms.Respiration", null] }, { $lt: ["$patientForms.Respiration", "$thresholds.Respiration.min"] }] },
+        { $and: [{ $ne: ["$patientForms.Respiration", null] }, { $gt: ["$patientForms.Respiration", "$thresholds.Respiration.max"] }] },
+        { $and: [{ $ne: ["$patientForms.Painscore", null] }, { $gt: ["$patientForms.Painscore", "$thresholds.Painscore.max"] }] }
+
+      ]
+    }
+  }
+},
+
+      // 🔹 Group ข้อมูลให้เหลือ 1 record ต่อ User
+      {
+        $group: {
+          _id: "$_id",
+          username: { $first: "$username" },
+          latestPatientFormExists: { $first: { $ifNull: ["$patientForms", false] } },
+          latestAssessmentStatus: { $first: "$latestAssessment.status_name" },
+          isAbnormal: { $first: "$isAbnormal" }
+        }
+      },
+
+      // 🔹 ตัดสินค่า latestStatusName ตามเงื่อนไข
+      {
+        $project: {
+          _id: 1,
+          username: 1,
+          latestStatusName: {
+            $cond: {
+              if: { $eq: ["$latestPatientFormExists", false] },
+              // then: "ยังไม่มีการบันทึก",
+              then: "-",
+
+              else: {
+                $cond: {
+                  if: { $ifNull: ["$latestAssessmentStatus", false] }, // ✅ ถ้ามี Assessment แล้ว
+                  then: "$latestAssessmentStatus",
+                  else: {
+                    $cond: {
+                      if: "$isAbnormal",
+                      then: "สัญญาณชีพผิดปกติ",
+                      else: "สัญญาณชีพปกติ"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    res.json({ status: "ok", data: result });
+  } catch (error) {
+    console.error("Error fetching assessments:", error);
+    res.status(500).json({ status: "error", message: "Internal Server Error" });
+  }
+});
+
+
+
 app.get("/alluser", async (req, res) => {
   try {
     const allUser = await User.find({});
@@ -1219,6 +1698,122 @@ app.get("/alluser", async (req, res) => {
     console.log(error);
   }
 });
+// app.get("/checkVitals/:patientFormId", async (req, res) => {
+//   try {
+//     const { patientFormId } = req.params;
+
+//     // ดึงข้อมูล PatientForm
+//     const patientForm = await PatientForm.findById(patientFormId).populate("user");
+//     if (!patientForm) {
+//       return res.status(404).json({ message: "ไม่พบข้อมูล PatientForm" });
+//     }
+
+//     // ดึงค่าของ UserThreshold
+//     const userThreshold = await UserThreshold.findOne({ user: patientForm.user._id });
+//     if (!userThreshold) {
+//       return res.status(404).json({ message: "ไม่พบข้อมูล UserThreshold" });
+//     }
+
+//     // ตรวจสอบว่าค่าวัดของคนไข้อยู่ในเกณฑ์หรือไม่
+//     const isAbnormal = (key) => {
+//       if (!userThreshold[key]) return false; // ถ้าไม่มี threshold ให้ข้ามไป
+//       return (
+//         patientForm[key] < userThreshold[key].min ||
+//         patientForm[key] > userThreshold[key].max
+//       );
+//     };
+
+//     const abnormalKeys = ["SBP", "DBP", "PulseRate", "Temperature", "DTX", "Respiration"].filter(isAbnormal);
+
+//     if (abnormalKeys.length > 0) {
+//       return res.json({ status: "สัญญาณชีพผิดปกติ", abnormalKeys });
+//     } else {
+//       return res.json({ status: "สัญญาณชีพปกติ" });
+//     }
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "เกิดข้อผิดพลาดในการประมวลผล" });
+//   }
+// });
+app.get("/checkVitals/:patientFormId", async (req, res) => {
+  try {
+    const { patientFormId } = req.params;
+
+    // ดึงข้อมูล PatientForm
+    const patientForm = await PatientForm.findById(patientFormId).populate("user");
+    if (!patientForm) {
+      return res.status(404).json({ message: "ไม่พบข้อมูล PatientForm" });
+    }
+
+    // ดึงค่าของ UserThreshold
+    const userThreshold = await UserThreshold.findOne({ user: patientForm.user._id });
+    if (!userThreshold) {
+      return res.status(404).json({ message: "ไม่พบข้อมูล UserThreshold" });
+    }
+
+    // ตรวจสอบว่าค่าวัดของคนไข้อยู่ในเกณฑ์หรือไม่
+    const isAbnormal = (key) => {
+      if (
+        patientForm[key] === null || 
+        patientForm[key] === undefined || 
+        !userThreshold[key] || 
+        userThreshold[key].min === undefined || 
+        userThreshold[key].max === undefined
+      ) {
+        return false; // ข้ามการตรวจสอบ ถ้าค่าในฟอร์มเป็น null หรือ threshold ไม่มีค่า
+      }
+
+      return (
+        patientForm[key] < userThreshold[key].min ||
+        patientForm[key] > userThreshold[key].max
+      );
+    };
+
+    // ค่าที่ต้องตรวจสอบ
+    const keysToCheck = ["SBP", "DBP", "PulseRate", "Temperature", "DTX", "Respiration"];
+
+    // ค้นหาค่าที่ผิดปกติ
+    const abnormalKeys = keysToCheck.filter(isAbnormal);
+
+    if (abnormalKeys.length > 0) {
+      return res.json({ status: "สัญญาณชีพผิดปกติ", abnormalKeys });
+    } else {
+      return res.json({ status: "สัญญาณชีพปกติ" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดในการประมวลผล" });
+  }
+});
+
+// app.get('/latest-assessments', async (req, res) => {
+//   try {
+//     const result = await User.aggregate([
+//       {
+//         $lookup: {
+//           from: 'assessments',
+//           localField: '_id',
+//           foreignField: 'user',
+//           as: 'assessments',
+//         },
+//       },
+//       { $unwind: { path: '$assessments', preserveNullAndEmptyArrays: true } },
+//       { $sort: { 'assessments.createdAt': -1 } },
+//       {
+//         $group: {
+//           _id: '$_id',
+//           username: { $first: '$username' },
+//           status_name: { $first: '$assessments.status_name' },
+//         },
+//       },
+//     ]);
+
+//     res.json(result); // ส่งผลลัพธ์เป็น JSON
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send('Something went wrong');
+//   }
+// });
 
 app.get("/user/:id", async (req, res) => {
   const { id } = req.params;
@@ -1267,13 +1862,49 @@ app.delete("/deleteAdmin/:id", async (req, res) => {
 });
 
 //ลบข้อมูลแพทย์
+// app.delete("/deleteMPersonnel/:id", async (req, res) => {
+//   const mpersonnelId = req.params.id;
+//   try {
+//     const result = await MPersonnel.deleteOne({ _id: mpersonnelId });
+
+//     if (result.deletedCount === 1) {
+//       res.json({ status: "OK", data: "ลบข้อมูลบุคลากรสำเร็จ" });
+//     } else {
+//       res.json({
+//         status: "Not Found",
+//         data: "ไม่พบข้อมูลบุคลากรหรือข้อมูลถูกลบไปแล้ว",
+//       });
+//     }
+//   } catch (error) {
+//     console.error("Error during deletion:", error);
+//     res.status(500).json({ status: "Error", data: "Internal Server Error" });
+//   }
+// });
+//ลบออกจาก room ด้วย
 app.delete("/deleteMPersonnel/:id", async (req, res) => {
   const mpersonnelId = req.params.id;
   try {
+    // ลบบุคลากรออกจากฐานข้อมูล
     const result = await MPersonnel.deleteOne({ _id: mpersonnelId });
 
     if (result.deletedCount === 1) {
-      res.json({ status: "OK", data: "ลบข้อมูลบุคลากรสำเร็จ" });
+      // ลบแพทย์ออกจาก participants ในห้องที่มีแพทย์นี้อยู่
+      const roomsUpdated = await Room.updateMany(
+        { "participants.id": mpersonnelId },
+        { $pull: { participants: { id: mpersonnelId } } } // ลบแพทย์ออกจาก participants
+      );
+
+      if (roomsUpdated.nModified > 0) {
+        res.json({
+          status: "OK",
+          data: "ลบข้อมูลบุคลากรสำเร็จ",
+        });
+      } else {
+        res.json({
+          status: "OK",
+          data: "ลบข้อมูลบุคลากรสำเร็จ",
+        });
+      }
     } else {
       res.json({
         status: "Not Found",
@@ -1430,19 +2061,28 @@ app.post("/updatecaremanual/:id", uploadimg.fields([{ name: 'image' }, { name: '
   const { id } = req.params;
 
   try {
-    const existingCaremanual = await Caremanual.findOne({ caremanual_name });
+    const existingCaremanual = await Caremanual.findOne({ 
+      caremanual_name: { $regex: `^${caremanual_name}$`, $options: 'i' }    });
     if (existingCaremanual && existingCaremanual._id.toString() !== id) {
       return res.status(400).json({ error: 'ชื่อคู่มือซ้ำในระบบ กรุณาเปลี่ยนชื่อ' });
     }
+    
     const files = req.files;
 
+
     const { imageUrl, fileUrl, originalFileName } = await uploadFiles(files);
+
+    let finalOriginalFileName = existingCaremanual ? existingCaremanual.originalFileName : undefined;
+    
+    if (fileUrl) {
+        finalOriginalFileName = originalFileName;
+      }
 
     const updatedData = {
       caremanual_name,
       image: imageUrl || undefined,
       file: fileUrl || undefined,
-      originalFileName: originalFileName || existingCaremanual.originalFileName,
+      originalFileName: finalOriginalFileName,       
       detail
     };
     
@@ -1729,7 +2369,7 @@ app.get("/searchmpersonnel", async (req, res) => {
     const result = await MPersonnel.aggregate([
       {
         $addFields: {
-          fullname: { $concat: ["$nametitle", "$name", " ", "$surname"] }
+          fullname: { $concat: ["$username","$nametitle", "$name", " ", "$surname"] }
         }
       },
       {
@@ -1777,7 +2417,10 @@ app.get("/searchadmin", async (req, res) => {
     const regex = new RegExp(escapeRegex(keyword), "i");
 
     const result = await Admins.find({
-      $or: [{ username: { $regex: regex } }],
+      $or: [{ username: { $regex: regex } }
+        ,
+        { email: { $regex: regex } },
+      ],
     });
 
     res.json({ status: "ok", data: result });
@@ -2170,7 +2813,6 @@ app.post("/userdata", async (req, res) => {
 //     user, // id ของ user
 //     caregivers, // array ของข้อมูลผู้ดูแล
 //   } = req.body;
-
 //   try {
 //     if (username) {
 //       // แก้ไขข้อมูลของ User
@@ -2523,7 +3165,9 @@ app.post("/userdata", async (req, res) => {
 //     res.status(500).send({ error: 'Error updating user or caregivers' });
 //   }
 // });
+
 app.post('/updateuserinfo', async (req, res) => { 
+  console.log('Request Body:', JSON.stringify(req.body, null, 2));
   const {
     username,
     name,
@@ -2555,28 +3199,31 @@ app.post('/updateuserinfo', async (req, res) => {
             ID_card_number,
             nationality,
             Address,
+            AdddataFirst: true,
           },
         }
       );
       for (const caregiver of caregivers) {
         if (caregiver._id) {
-          // หากมี _id ให้ตรวจสอบและอัปเดตข้อมูลผู้ดูแลที่มีอยู่
+          console.log('Request Body:', "เงื่อนไขมีไอดี");
           const existingCaregiver = await Caregiver.findOne({ _id: caregiver._id });
           if (existingCaregiver) {
-            // ตรวจสอบว่ามี ID_card_number ตรงกับ caregiver ในระบบหรือไม่
             if (existingCaregiver.ID_card_number === caregiver.ID_card_number) {
-              // ตรวจสอบว่ามี user อยู่ใน userRelationships หรือไม่
               const existingRelationship = existingCaregiver.userRelationships.find(
                 (rel) => rel.user.toString() === user
               );
-      
               if (!existingRelationship) {
-                // เพิ่ม user ใหม่ใน userRelationships
                 existingCaregiver.userRelationships.push({
                   user: user,
-                  relationship: caregiver.Relationship || "-", // เพิ่มความสัมพันธ์
+                  relationship: caregiver.relationship || "-", // เพิ่มความสัมพันธ์
                 });
                 await existingCaregiver.save(); // บันทึกการเปลี่ยนแปลง
+              } else {
+                // ถ้ามี user แล้ว ตรวจสอบว่ามีการส่ง relationship ใหม่หรือไม่
+                if (caregiver.relationship !== undefined && caregiver.relationship !== null) {
+                  existingRelationship.relationship = caregiver.relationship; // อัปเดต relationship
+                }
+                await existingCaregiver.save();
               }
             } else {
               // อัปเดตข้อมูล caregiver หาก ID_card_number ไม่ตรง
@@ -2593,13 +3240,19 @@ app.post('/updateuserinfo', async (req, res) => {
             }
           }
         } else {
-          // หากไม่มี _id ให้สร้าง caregiver ใหม่
+          // หากไม่มี ID_card_number ตรง เพิ่ม
           const existingCaregiver = await Caregiver.findOne({
             ID_card_number: caregiver.ID_card_number,
           });
       
           if (existingCaregiver) {
-            // หากมี caregiver อยู่ในระบบที่ ID_card_number ตรงกัน ให้เพิ่ม userRelationships
+            const relationship = 
+                  caregiver.userRelationships && caregiver.userRelationships[0]
+                  ? caregiver.userRelationships[0].relationship
+                   : "-"; 
+
+            console.log('Extracted Relationship:', relationship);
+            console.log('userRelationships Before:', JSON.stringify(existingCaregiver.userRelationships, null, 2));
             const existingRelationship = existingCaregiver.userRelationships.find(
               (rel) => rel.user.toString() === user
             );
@@ -2607,22 +3260,25 @@ app.post('/updateuserinfo', async (req, res) => {
             if (!existingRelationship) {
               existingCaregiver.userRelationships.push({
                 user: user,
-                relationship: caregiver.Relationship || "-", // เพิ่มความสัมพันธ์
+                relationship: relationship, 
               });
-              await existingCaregiver.save(); // บันทึกการเปลี่ยนแปลง
+              console.log('userRelationships After:', JSON.stringify(existingCaregiver.userRelationships, null, 2));
+
+              await existingCaregiver.save(); 
+              
             }
           } else {
-            // หากไม่มี caregiver ในระบบ ให้สร้างใหม่
+            // กรณีไม่มี caregiver ในระบบ ให้สร้างใหม่
             await Caregiver.create({
               user,
               ID_card_number: caregiver.ID_card_number,
               name: caregiver.name,
               surname: caregiver.surname,
               tel: caregiver.tel,
-              userRelationships: [
+              userRelationships: caregiver.userRelationships || [
                 {
                   user: user,
-                  relationship: caregiver.Relationship || "-", // เพิ่มความสัมพันธ์
+                  relationship: caregiver.relationship || "-",
                 },
               ],
             });
@@ -2639,6 +3295,8 @@ app.post('/updateuserinfo', async (req, res) => {
     res.status(500).send({ error: 'Error updating user or caregivers' });
   }
 });
+
+
 //ลืมรหัสผ่าน
 app.post('/forgot-passworduser', async (req, res) => {
   const { email } = req.body;
@@ -2918,6 +3576,7 @@ app.post("/updateuserapp", async (req, res) => {
 // });
 app.get("/getCaregiverById/:id", async (req, res) => {
   const { id } = req.params;
+  
   try {
     const caregiver = await Caregiver.findOne({ ID_card_number: id });
     if (caregiver) {
@@ -3226,7 +3885,7 @@ app.post("/updatepassuser", async (req, res) => {
     }
 
     if (newPassword.trim() !== confirmNewPassword.trim()) {
-      return res.status(400).json({ error: "รหัสผ่านไม่ตรงกัน" });
+      return res.status(400).json({ error: "รหัสผ่านใหม่และยืนยันรหัศผ่านไม่ตรงกัน" });
     }
 
     // ตรวจสอบรหัสผ่านเก่า
@@ -3652,15 +4311,26 @@ app.get("/getpatientform/:id", async (req, res) => {
 //   }
 // });
 
-// const checkAbnormalities = async (data, thresholds, patientFormId, user, isUpdate = false) => {
+
+
+// const checkAbnormalities = async (data, thresholds, patientFormId, userId, isUpdate = false) => {
 //   let alerts = [];
 
+//   const keyToLabel = {
+//     SBP: "ความดันตัวบน",
+//     DBP: "ความดันตัวล่าง",
+//     PulseRate: "อัตราชีพจร",
+//     Temperature: "อุณหภูมิ",
+//     DTX: "น้ำตาลในเลือด",
+//     Respiration: "อัตราการหายใจ",
+//     Painscore: "ระดับความเจ็บปวด"
+//   };
 //   const checkThreshold = (value, key) => {
 //     if (value !== null && value !== undefined) {
 //       const strValue = typeof value === 'string' ? value.trim() : value.toString();
 //       const numValue = parseFloat(strValue);
 //       if (numValue < thresholds[key].min || numValue > thresholds[key].max) {
-//         alerts.push(key);
+//         alerts.push(keyToLabel[key] || key);
 //       }
 //     }
 //   };
@@ -3672,101 +4342,202 @@ app.get("/getpatientform/:id", async (req, res) => {
 //   checkThreshold(data.DTX, 'DTX');
 //   checkThreshold(data.Respiration, 'Respiration');
 
-//   if (data.Painscore > 5) alerts.push("Painscore สูงกว่า 5");
+//   if (data.Painscore > 5) alerts.push(keyToLabel["Painscore"] || "Painscore สูงกว่า 5");
+
+//   if (alerts.length === 0) {
+//     await Alert.deleteMany({ patientFormId, user: userId });
+//     io.emit('deletedAlert', { patientFormId });
+//     return;
+//   }
 
 //   if (alerts.length > 0) {
 //     const prefix = isUpdate ? "มีการแก้ไขการบันทึก แล้วค่า" : "ค่า";
 //     const alertMessage = `${prefix} ${alerts.join(', ')} มีความผิดปกติ`;
 
 //     // ตรวจสอบว่ามีการแจ้งเตือนเดิมอยู่แล้วหรือไม่
-//     const existingAlert = await Alert.findOne({ patientFormId, user });
+//     const existingAlert = await Alert.findOne({ patientFormId, user: userId });
+//     let alert;
 //     if (existingAlert) {
 //       // อัปเดตการแจ้งเตือนเดิม
 //       existingAlert.alertMessage = alertMessage;
-//       await existingAlert.save();
+//       alert = await existingAlert.save();
 //     } else {
 //       // สร้างการแจ้งเตือนใหม่หากไม่มี
-//       await Alert.create({ patientFormId, alertMessage, user });
+//       alert = await Alert.create({ patientFormId, alertMessage, user: userId });
 //     }
 
+//     // ดึงข้อมูล user เพื่อให้ได้ name และ surname
+//     const user = await User.findById(userId).select('name surname');
+//     if (!user) throw new Error('User not found');
+//     const patientForm = await PatientForm.findById(patientFormId).select("createdAt updatedAt");
+//     if (!patientForm) throw new Error("Patient form not found");
+
 //     // ส่งการแจ้งเตือนผ่าน WebSocket
-//     io.emit('newAlert', { alertMessage, patientFormId , user});
+//     io.emit('newAlert', {
+//       _id: alert._id, 
+//       alertMessage,
+//       patientFormId,
+//       user: { id: userId, name: user.name, surname: user.surname },
+//       createdAt: alert.createdAt, // ใช้ createdAt ของ alert เอง
+//       patientFormCreatedAt: patientForm?.createdAt || null, 
+//       patientFormUpdatedAt : patientForm?.updatedAt || null,
+//       updatedAt: alert.updatedAt,
+//       viewedBy: alert.viewedBy || [],
+//     });
 //   }
 // };
+//ไม่มีประเภท
+// const checkAbnormalities = async (data, thresholds, patientFormId, userId, isUpdate = false) => {
+//   let alerts = [];
 
+//   const keyToLabel = {
+//     SBP: "ความดันตัวบน",
+//     DBP: "ความดันตัวล่าง",
+//     PulseRate: "อัตราชีพจร",
+//     Temperature: "อุณหภูมิ",
+//     DTX: "น้ำตาลในเลือด",
+//     Respiration: "อัตราการหายใจ",
+//     Painscore: "ระดับความเจ็บปวด"
+//   };
 
+//   const checkThreshold = (value, key) => {
+//     if (value !== null && value !== undefined) {
+//       const strValue = typeof value === 'string' ? value.trim() : value.toString();
+//       const numValue = parseFloat(strValue);
+//       if (numValue < thresholds[key].min || numValue > thresholds[key].max) {
+//         alerts.push(keyToLabel[key] || key);
+//       }
+//     }
+//   };
+
+//   checkThreshold(data.SBP, 'SBP');
+//   checkThreshold(data.DBP, 'DBP');
+//   checkThreshold(data.PulseRate, 'PulseRate');
+//   checkThreshold(data.Temperature, 'Temperature');
+//   checkThreshold(data.DTX, 'DTX');
+//   checkThreshold(data.Respiration, 'Respiration');
+
+//   if (data.Painscore > 5) alerts.push(keyToLabel["Painscore"] || "Painscore สูงกว่า 5");
+
+//   const user = await User.findById(userId).select('name surname');
+//   if (!user) throw new Error('User not found');
+
+//   const patientForm = await PatientForm.findById(patientFormId).select("createdAt updatedAt");
+//   if (!patientForm) throw new Error("Patient form not found");
+
+  
+//   if (alerts.length === 0) {
+//     // ✅ กรณีค่าปกติ -> แจ้งเตือนว่ามีการเพิ่มบันทึกอาการ
+//     const alertMessage = `เพิ่มการบันทึกอาการ (ค่าปกติ)`;
+
+//     const alert = await Alert.create({ patientFormId, alertMessage, user: userId });
+
+//     io.emit('newAlert', {
+//       _id: alert._id,
+//       alertMessage,
+//       patientFormId,
+//       user: { id: userId, name: user.name, surname: user.surname },
+//       createdAt: alert.createdAt,
+//       patientFormCreatedAt: patientForm?.createdAt || null,
+//       patientFormUpdatedAt: patientForm?.updatedAt || null,
+//       updatedAt: alert.updatedAt,
+//       viewedBy: alert.viewedBy || [],
+//     });
+
+//     return;
+//   }
+
+//   // ✅ กรณีค่าผิดปกติ -> แจ้งเตือนว่ามีความผิดปกติ
+//   const prefix = isUpdate ? "มีการแก้ไขการบันทึก แล้วค่า" : "ค่า";
+//   const alertMessage = `${prefix} ${alerts.join(', ')} มีความผิดปกติ`;
+
+//   const existingAlert = await Alert.findOne({ patientFormId, user: userId });
+//   let alert;
+//   if (existingAlert) {
+//     existingAlert.alertMessage = alertMessage;
+//     alert = await existingAlert.save();
+//   } else {
+//     alert = await Alert.create({ patientFormId, alertMessage, user: userId });
+//   }
+
+//   io.emit('newAlert', {
+//     _id: alert._id,
+//     alertMessage,
+//     patientFormId,
+//     user: { id: userId, name: user.name, surname: user.surname },
+//     createdAt: alert.createdAt,
+//     patientFormCreatedAt: patientForm?.createdAt || null,
+//     patientFormUpdatedAt: patientForm?.updatedAt || null,
+//     updatedAt: alert.updatedAt,
+//     viewedBy: alert.viewedBy || [],
+//   });
+// };
 const checkAbnormalities = async (data, thresholds, patientFormId, userId, isUpdate = false) => {
   let alerts = [];
 
   const keyToLabel = {
+    Temperature: "อุณหภูมิ",
     SBP: "ความดันตัวบน",
     DBP: "ความดันตัวล่าง",
     PulseRate: "อัตราชีพจร",
-    Temperature: "อุณหภูมิ",
+    Respiration: "การหายใจ",
+    Painscore: "ระดับความเจ็บปวด",
     DTX: "น้ำตาลในเลือด",
-    Respiration: "อัตราการหายใจ",
-    Painscore: "ระดับความเจ็บปวด"
   };
+
   const checkThreshold = (value, key) => {
     if (value !== null && value !== undefined) {
-      const strValue = typeof value === 'string' ? value.trim() : value.toString();
-      const numValue = parseFloat(strValue);
+      const numValue = parseFloat(value.toString().trim());
       if (numValue < thresholds[key].min || numValue > thresholds[key].max) {
         alerts.push(keyToLabel[key] || key);
       }
     }
   };
-
+  checkThreshold(data.Temperature, 'Temperature');
   checkThreshold(data.SBP, 'SBP');
   checkThreshold(data.DBP, 'DBP');
   checkThreshold(data.PulseRate, 'PulseRate');
-  checkThreshold(data.Temperature, 'Temperature');
-  checkThreshold(data.DTX, 'DTX');
   checkThreshold(data.Respiration, 'Respiration');
-
   if (data.Painscore > 5) alerts.push(keyToLabel["Painscore"] || "Painscore สูงกว่า 5");
+  checkThreshold(data.DTX, 'DTX');
+  const user = await User.findById(userId).select('name surname');
+  if (!user) throw new Error('User not found');
+
+  const patientForm = await PatientForm.findById(patientFormId).select("createdAt updatedAt");
+  if (!patientForm) throw new Error("Patient form not found");
+
+  let alertType = "";
+  let alertMessage = "";
 
   if (alerts.length === 0) {
-    await Alert.deleteMany({ patientFormId, user: userId });
-    io.emit('deletedAlert', { patientFormId });
-    return;
+    alertType = "normal";
+    alertMessage = isUpdate ? `แก้ไขการบันทึกอาการ (ค่าปกติ)` : `เพิ่มการบันทึกอาการ (ค่าปกติ)`;
+  } else {
+    alertType = "abnormal";
+    alertMessage = `${isUpdate ? "แก้ไขการบันทึกอาการ ค่า" : "เพิ่มการบันทึกอาการ ค่า"} ${alerts.join(', ')} มีความผิดปกติ`;
   }
 
-  if (alerts.length > 0) {
-    const prefix = isUpdate ? "มีการแก้ไขการบันทึก แล้วค่า" : "ค่า";
-    const alertMessage = `${prefix} ${alerts.join(', ')} มีความผิดปกติ`;
-
-    // ตรวจสอบว่ามีการแจ้งเตือนเดิมอยู่แล้วหรือไม่
-    const existingAlert = await Alert.findOne({ patientFormId, user: userId });
-    let alert;
-    if (existingAlert) {
-      // อัปเดตการแจ้งเตือนเดิม
-      existingAlert.alertMessage = alertMessage;
-      alert = await existingAlert.save();
-    } else {
-      // สร้างการแจ้งเตือนใหม่หากไม่มี
-      alert = await Alert.create({ patientFormId, alertMessage, user: userId });
-    }
-
-    // ดึงข้อมูล user เพื่อให้ได้ name และ surname
-    const user = await User.findById(userId).select('name surname');
-    if (!user) throw new Error('User not found');
-    const patientForm = await PatientForm.findById(patientFormId).select("createdAt updatedAt");
-    if (!patientForm) throw new Error("Patient form not found");
-
-    // ส่งการแจ้งเตือนผ่าน WebSocket
-    io.emit('newAlert', {
-      _id: alert._id, 
-      alertMessage,
-      patientFormId,
-      user: { id: userId, name: user.name, surname: user.surname },
-      createdAt: alert.createdAt, // ใช้ createdAt ของ alert เอง
-      patientFormCreatedAt: patientForm?.createdAt || null, 
-      patientFormUpdatedAt : patientForm?.updatedAt || null,
-      updatedAt: alert.updatedAt,
-      viewedBy: alert.viewedBy || [],
-    });
+  const existingAlert = await Alert.findOne({ patientFormId, alertType });
+  let alert;
+  if (existingAlert) {
+    existingAlert.alertMessage = alertMessage;
+    alert = await existingAlert.save();
+  } else {
+    alert = await Alert.create({ patientFormId, alertMessage, user: userId, alertType });
   }
+
+  io.emit('newAlert', {
+    _id: alert._id,
+    alertMessage,
+    patientFormId,
+    user: { id: userId, name: user.name, surname: user.surname },
+    alertType, // ระบุประเภทแจ้งเตือน
+    createdAt: alert.createdAt,
+    patientFormCreatedAt: patientForm?.createdAt || null,
+    patientFormUpdatedAt: patientForm?.updatedAt || null,
+    updatedAt: alert.updatedAt,
+    viewedBy: alert.viewedBy || [],
+  });
 };
 
 
@@ -3816,6 +4587,100 @@ app.post("/addpatientform", async (req, res) => {
   }
 });
 
+// app.put("/updatepatientform/:id", async (req, res) => {
+//   const {
+//     Symptoms,
+//     SBP,
+//     DBP,
+//     PulseRate,
+//     Temperature,
+//     DTX,
+//     Respiration,
+//     LevelSymptom,
+//     Painscore,
+//     request_detail,
+//     Recorder,
+//     user
+//   } = req.body;
+
+//   const { id } = req.params;
+
+//   try {
+//     const updatedFields = {
+//       Symptoms,
+//       SBP: SBP !== '' ? SBP : null,
+//       DBP: DBP !== '' ? DBP : null,
+//       PulseRate: PulseRate !== '' ? PulseRate : null,
+//       Temperature: Temperature !== '' ? Temperature : null,
+//       DTX: DTX !== '' ? DTX : null,
+//       Respiration: Respiration !== '' ? Respiration : null,
+//       LevelSymptom,
+//       Painscore,
+//       request_detail,
+//       Recorder,
+//       user,
+//       updatedAt: new Date(),
+//     };
+
+//     Object.keys(updatedFields).forEach(key => updatedFields[key] === undefined && delete updatedFields[key]);
+
+//     const patientForm = await PatientForm.findByIdAndUpdate(id, updatedFields, { new: true });
+
+//     if (!patientForm) {
+//       return res.status(404).send({ status: "error", message: "Patient form not found" });
+//     }
+
+//     await Alert.updateMany(
+//       { patientFormId: id }, // เงื่อนไขเพื่อค้นหา Alert ที่เกี่ยวข้อง
+//       { $set: { viewedBy: [],
+//         updatedAt: new Date() 
+//       } } // รีเซ็ตฟิลด์ viewedBy
+//     );
+
+//     const userThreshold = await UserThreshold.findOne({ user });
+//     const thresholds = userThreshold || threshold;
+
+//     await checkAbnormalities(req.body, thresholds, patientForm._id, user, true);
+
+//     res.send({ status: "ok", patientForm });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).send({ status: "error", message: error.message });
+//   }
+// });
+
+
+// app.get("/alerts", async (req, res) => {
+//   try {
+//     // ดึงข้อมูล alerts และเชื่อมโยงข้อมูล user และ patientForm
+//     const alerts = await Alert.find()
+//       .sort({ updatedAt: -1 })
+//       .populate("MPersonnel", "name surname") 
+//       .populate({
+//         path: 'user',
+//         select: 'name surname',
+//         match: { deletedAt: null } // ดึงเฉพาะ user ที่ไม่มี deletedAt
+//       })
+//       .populate({
+//         path: 'patientFormId', // เชื่อมโยงกับ patientForm
+//         select: 'createdAt updatedAt' // ดึงเฉพาะฟิลด์ createdAt จาก patientForm
+//       });
+
+//       const updatedAlerts = alerts.map(alert => ({
+//         ...alert.toObject(),
+//         patientFormId: alert.patientFormId?._id || alert.patientFormId || null,
+//         patientFormCreatedAt: alert.patientFormId?.createdAt || null, 
+//         patientFormUpdatedAt: alert.patientFormId?.updatedAt || null, 
+      
+//       }));
+  
+//       res.json({ alerts: updatedAlerts });
+//   } catch (error) {
+//     console.error("Error fetching alerts:", error);
+//     res.status(500).send({ status: "error", message: error.message });
+//   }
+// });
+
 app.put("/updatepatientform/:id", async (req, res) => {
   const {
     Symptoms,
@@ -3835,6 +4700,7 @@ app.put("/updatepatientform/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
+    // อัปเดตข้อมูล PatientForm
     const updatedFields = {
       Symptoms,
       SBP: SBP !== '' ? SBP : null,
@@ -3859,12 +4725,10 @@ app.put("/updatepatientform/:id", async (req, res) => {
       return res.status(404).send({ status: "error", message: "Patient form not found" });
     }
 
-    await Alert.updateMany(
-      { patientFormId: id }, // เงื่อนไขเพื่อค้นหา Alert ที่เกี่ยวข้อง
-      { $set: { viewedBy: [],
-        updatedAt: new Date() 
-      } } // รีเซ็ตฟิลด์ viewedBy
-    );
+    console.log(`Deleting all alerts related to patientFormId: ${id}`);
+    await Alert.deleteMany({ patientFormId: id });
+
+    io.emit('deletedAlert', { patientFormId: id });
 
     const userThreshold = await UserThreshold.findOne({ user });
     const thresholds = userThreshold || threshold;
@@ -3873,66 +4737,88 @@ app.put("/updatepatientform/:id", async (req, res) => {
 
     res.send({ status: "ok", patientForm });
   } catch (error) {
-    console.error(error);
+    console.error("Error updating patient form:", error);
     res.status(500).send({ status: "error", message: error.message });
   }
 });
 
-// app.get("/alerts", async (req, res) => {
-//   try {
-//     const alerts = await Alert.find().populate('user', 'name surname').sort({ createdAt: -1 });
-//     res.json({ alerts });
-//   } catch (error) {
-//     console.error("Error fetching alerts:", error);
-//     res.status(500).send({ status: "error", message: error.message });
-//   }
-// });
-// app.get("/alerts", async (req, res) => { 
-//   try {
-//     const alerts = await Alert.find()
-//     .sort({ updatedAt: -1 })
-//       .populate({
-//         path: 'user',
-//         select: 'name surname',
-//         match: { deletedAt: null } 
-//       });
-
-//     res.json({ alerts });
-
-//   } catch (error) {
-//     console.error("Error fetching alerts:", error);
-//     res.status(500).send({ status: "error", message: error.message });
-//   }
-// });
 app.get("/alerts", async (req, res) => {
   try {
-    // ดึงข้อมูล alerts และเชื่อมโยงข้อมูล user และ patientForm
-    const alerts = await Alert.find()
-      .sort({ updatedAt: -1 })
+    const { userId } = req.query;
+
+    let query = {};
+
+    if (userId) {
+      query = { MPersonnel: { $ne: userId } }; 
+    }
+    const alerts = await Alert.find(query)
+      .sort({ createdAt: -1 })
+      .populate("MPersonnel", "nametitle name surname") 
       .populate({
         path: 'user',
         select: 'name surname',
-        match: { deletedAt: null } // ดึงเฉพาะ user ที่ไม่มี deletedAt
+        match: { deletedAt: null } 
       })
       .populate({
-        path: 'patientFormId', // เชื่อมโยงกับ patientForm
-        select: 'createdAt updatedAt' // ดึงเฉพาะฟิลด์ createdAt จาก patientForm
+        path: 'patientFormId', 
+        select: 'createdAt updatedAt' 
       });
 
-      const updatedAlerts = alerts.map(alert => ({
-        ...alert.toObject(),
-        patientFormId: alert.patientFormId?._id || alert.patientFormId || null, // ใช้ _id ถ้ามี
-        patientFormCreatedAt: alert.patientFormId?.createdAt || null, // เพิ่ม patientFormCreatedAt
-        patientFormUpdatedAt: alert.patientFormId?.updatedAt || null, // เพิ่ม patientFormCreatedAt
-      }));
-  
-      res.json({ alerts: updatedAlerts });
+    //   const updatedAlerts = alerts.map(alert => ({
+    //   _id: alert._id,
+    //   alertMessage: alert.alertMessage,
+    //   alertType: alert.alertType || "unknown", 
+    //   createdAt: alert.createdAt,
+    //   createdAtAss: alert.createdAtAss,
+    //   updatedAt: alert.updatedAt,
+    //   patientFormId: alert.patientFormId?._id || alert.patientFormId || null,
+    //   patientFormCreatedAt: alert.patientFormId?.createdAt || null,
+    //   patientFormUpdatedAt: alert.patientFormId?.updatedAt || null,
+    //   user: alert.user ? { id: alert.user._id, name: alert.user.name, surname: alert.user.surname } : null,
+    //   MPersonnel: alert.MPersonnel
+    //     ? { 
+    //         id: alert.MPersonnel._id, 
+    //         nametitle: alert.MPersonnel.nametitle, 
+    //         name: alert.MPersonnel.name, 
+    //         surname: alert.MPersonnel.surname 
+    //       }
+    //     : null,
+    //   viewedBy: alert.viewedBy
+    // }));
+    // แปลงข้อมูลที่ดึงมา
+    const updatedAlerts = alerts.map(alert => {
+      // ตรวจสอบ MPersonnel ว่ามีค่าหรือไม่
+      const MPersonnel = alert.MPersonnel
+        ? { 
+            id: alert.MPersonnel._id, 
+            nametitle: alert.MPersonnel.nametitle, 
+            name: alert.MPersonnel.name, 
+            surname: alert.MPersonnel.surname 
+          }
+        : null; // กำหนดเป็น null ถ้าไม่มีค่า MPersonnel
+
+      return {
+        _id: alert._id,
+        alertMessage: alert.alertMessage,
+        alertType: alert.alertType || "unknown", 
+        createdAt: alert.createdAt,
+        createdAtAss: alert.createdAtAss,
+        updatedAt: alert.updatedAt,
+        patientFormId: alert.patientFormId?._id || alert.patientFormId || null,
+        patientFormCreatedAt: alert.patientFormId?.createdAt || null,
+        patientFormUpdatedAt: alert.patientFormId?.updatedAt || null,
+        user: alert.user ? { id: alert.user._id, name: alert.user.name, surname: alert.user.surname } : null,
+        MPersonnel,
+        viewedBy: alert.viewedBy
+      };
+    });
+
+    res.json({ alerts: updatedAlerts });
   } catch (error) {
     console.error("Error fetching alerts:", error);
     res.status(500).send({ status: "error", message: error.message });
   }
 });
-
 app.put("/alerts/:id/viewed", async (req, res) => {
   try {
     const alertId = req.params.id;
@@ -3972,6 +4858,51 @@ app.put("/alerts/mark-all-viewed", async (req, res) => {
   }
 });
 
+app.put('/alerts/mark-all-viewed-by-type', async (req, res) => {
+  const { userId, type } = req.body;
+
+  try {
+    let alertsToUpdate = [];
+
+    if (type === 'all') {
+      alertsToUpdate = await Alert.find({
+        viewedBy: { $ne: userId },
+      });
+    } else if (type === 'assessment') {
+      // กรองเฉพาะประเภท "assessment" และไม่ใช่ "เคสฉุกเฉิน"
+      alertsToUpdate = await Alert.find({
+        alertType: 'assessment',
+        alertMessage: { $ne: 'เคสฉุกเฉิน' },
+        viewedBy: { $ne: userId },
+      });
+    } else if (type === 'abnormal') {
+      // กรองเฉพาะประเภท "abnormal" หรือข้อความเป็น "เคสฉุกเฉิน"
+      alertsToUpdate = await Alert.find({
+        $or: [
+          { alertType: 'abnormal' },
+          { alertMessage: 'เคสฉุกเฉิน' },
+        ],
+        viewedBy: { $ne: userId },
+      });
+    } else if (type === 'normal') {
+      // กรองเฉพาะประเภท "normal"
+      alertsToUpdate = await Alert.find({
+        alertType: 'normal',
+        viewedBy: { $ne: userId },
+      });
+    }
+
+    await Alert.updateMany(
+      { _id: { $in: alertsToUpdate.map(alert => alert._id) } },
+      { $push: { viewedBy: userId } }
+    );
+
+    res.status(200).json({ message: 'All selected alerts marked as viewed' });
+  } catch (error) {
+    console.error('Error marking alerts as viewed:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 
 //นับความถี่อาการ
@@ -4030,7 +4961,6 @@ app.get("/getpatientformsone/:id", async (req, res) => {
   }
 });
 
-// จบแอป-------------------------------------------
 
 
 //ดึงข้อมูลกราฟทั้งหมด
@@ -4071,7 +5001,59 @@ app.get("/getPatientData/:userId/:formId", async (req, res) => {
 });
 
 //แบบไม่มีชื่อผู้ประเมิน
-app.post("/addassessment", async (req, res) => {
+// app.post("/addassessment", async (req, res) => {
+//   const { suggestion, detail, status_name, PPS, MPersonnel, PatientForm: patientFormId } = req.body;
+
+//   try {
+//     const patientForm = await PatientForm.findById(patientFormId).populate('user').exec();
+
+//     if (!patientForm) {
+//       return res.status(404).send({ status: "error", message: "PatientForm not found." });
+//     }
+//     const assessment = await Assessment.create({
+//       suggestion, detail, status_name, PPS, MPersonnel, PatientForm: patientForm._id,
+//     });
+    
+//     const createdAtAss = assessment.createdAt;
+//     let alert;
+//     if (status_name === 'เคสฉุกเฉิน') {
+//       const alertMessage = `เป็นเคสฉุกเฉิน`;
+
+//       const { _id: userId, name, surname } = patientForm.user;
+      
+//       alert = await Alert.create({
+//         patientFormId: patientForm._id,
+//         alertMessage,
+//         user: patientForm.user._id,
+//         createdAtAss: new Date() 
+//       });
+      
+//       io.emit('newAlert', { 
+//         _id: alert._id, 
+//         alertMessage, 
+//         patientFormId: patientForm._id,
+//         createdAt: alert.createdAt, // ใช้ createdAt ของ alert เอง
+//         patientFormCreatedAt: patientForm?.createdAt || null,
+//         patientFormUpdatedAt : patientForm?.updatedAt || null,
+//         createdAtAss ,
+//         updatedAt: alert.updatedAt,
+//         user: { id: userId, name, surname } ,
+//         viewedBy:[]});
+//     }
+
+   
+//     res.send({ status: "ok" });
+//   } catch (error) {
+//     console.error("Error:", error);
+//     if (error.code === 11000 && error.keyPattern.PatientForm) {
+//       res.status(400).send({ status: "error", message: "PatientForm already has an assessment." });
+//     } else {
+//       res.status(500).send({ status: "error", message: "An error occurred while adding assessment." });
+//     }
+//   }
+// });
+
+app.post("/addassessment", async (req, res) => { 
   const { suggestion, detail, status_name, PPS, MPersonnel, PatientForm: patientFormId } = req.body;
 
   try {
@@ -4080,38 +5062,64 @@ app.post("/addassessment", async (req, res) => {
     if (!patientForm) {
       return res.status(404).send({ status: "error", message: "PatientForm not found." });
     }
+
+    // ลบ Alert ทั้งหมดที่เกี่ยวข้องกับ patientFormId ถ้าไม่อยากให้ลบเอาอันนี้ออก
+    await Alert.deleteMany({
+        patientFormId: patientForm._id
+    });
+    io.emit('deletedAlert', { patientFormId: patientForm._id});
+
     const assessment = await Assessment.create({
       suggestion, detail, status_name, PPS, MPersonnel, PatientForm: patientForm._id,
     });
-    
-    const createdAtAss = assessment.createdAt;
-    let alert;
-    if (status_name === 'เคสฉุกเฉิน') {
-      const alertMessage = `เป็นเคสฉุกเฉิน`;
 
+    const createdAtAss = assessment.createdAt;
+    let alertMessage = null;
+    let alertType = "";
+    if (status_name === "เคสฉุกเฉิน") {
+      alertMessage = "เคสฉุกเฉิน";
+      alertType = "assessment"; 
+    } else {
+      alertMessage = status_name;
+      alertType = "assessment";
+    }
+
+    let alert;
+    if (alertMessage) {
       const { _id: userId, name, surname } = patientForm.user;
       
       alert = await Alert.create({
         patientFormId: patientForm._id,
         alertMessage,
         user: patientForm.user._id,
+        MPersonnel,
+        alertType,
         createdAtAss: new Date() 
       });
+
+      const populatedAlert = await Alert.findById(alert._id)
+        .populate("MPersonnel", "nametitle name surname")
+        .exec();
       
       io.emit('newAlert', { 
         _id: alert._id, 
         alertMessage, 
+        alertType,
         patientFormId: patientForm._id,
-        createdAt: alert.createdAt, // ใช้ createdAt ของ alert เอง
+        createdAt: alert.createdAt, 
         patientFormCreatedAt: patientForm?.createdAt || null,
         patientFormUpdatedAt : patientForm?.updatedAt || null,
         createdAtAss ,
         updatedAt: alert.updatedAt,
         user: { id: userId, name, surname } ,
-        viewedBy:[]});
+        MPersonnel: populatedAlert.MPersonnel
+          ? { id: populatedAlert.MPersonnel._id, nametitle: populatedAlert.MPersonnel.nametitle, name: populatedAlert.MPersonnel.name, surname: populatedAlert.MPersonnel.surname }
+          : null, 
+        viewedBy: [],
+        excludeMPersonnel: MPersonnel 
+      });
     }
 
-   
     res.send({ status: "ok" });
   } catch (error) {
     console.error("Error:", error);
@@ -4123,6 +5131,89 @@ app.post("/addassessment", async (req, res) => {
   }
 });
 
+// app.put("/updateassessment/:id", async (req, res) => {
+//   const { id } = req.params;
+//   const { suggestion, detail, status_name, PPS, MPersonnel } = req.body;
+
+//   try {
+//     const assessment = await Assessment.findById(id).populate('PatientForm').exec();
+
+//     if (!assessment) {
+//       return res.status(404).send({ status: "error", message: "Assessment not found." });
+//     }
+
+//     const previousStatus = assessment.status_name;
+
+//     // บันทึกการแก้ไขลงใน history
+//     assessment.history.push({
+//       suggestion: assessment.suggestion,
+//       detail: assessment.detail,
+//       status_name: previousStatus,
+//       PPS: assessment.PPS,
+//       updatedBy: MPersonnel,
+//     });
+
+//     // อัปเดตข้อมูลใหม่
+//     assessment.suggestion = suggestion;
+//     assessment.detail = detail;
+//     assessment.status_name = status_name;
+//     assessment.PPS = PPS;
+
+//     // ตรวจสอบว่ามีการเปลี่ยนแปลงสถานะจาก 'เคสฉุกเฉิน'
+//     if (previousStatus === 'เคสฉุกเฉิน' && status_name !== 'เคสฉุกเฉิน') {
+//       console.log(`Deleting alert for patientFormId: ${assessment.PatientForm._id} with message: 'เป็นเคสฉุกเฉิน'`);
+      
+//       // ลบ alert ที่เกี่ยวข้อง
+//       const deleteResult = await Alert.deleteOne({
+//         patientFormId: assessment.PatientForm._id,
+//         alertMessage: 'เป็นเคสฉุกเฉิน'
+//       });
+
+//       console.log(`Delete result: ${deleteResult}`);
+
+//       io.emit('deletedAlert', { patientFormId: assessment.PatientForm._id, alertMessage: 'เป็นเคสฉุกเฉิน' });
+
+//     }
+//     let alert;
+
+//     // ถ้าเป็นเคสฉุกเฉินให้สร้าง alert ใหม่
+//     if (status_name === 'เคสฉุกเฉิน' && previousStatus !== 'เคสฉุกเฉิน') {
+//       const alertMessage = `เป็นเคสฉุกเฉิน`;
+//       const patientFormCreatedAt = assessment.PatientForm.createdAt;
+//       const patientFormUpdatedAt = assessment.PatientForm.updatedAt;
+//       const user = await User.findById(assessment.PatientForm.user._id).select('name surname');
+//       if (!user) throw new Error('User not found');
+//       console.log(`Creating alert for patientFormId: ${assessment.PatientForm._id} with message: 'เป็นเคสฉุกเฉิน'`);
+//       alert = await Alert.create({
+//         patientFormId: assessment.PatientForm._id,
+//         alertMessage,
+//         user: assessment.PatientForm.user._id,
+//         createdAtAss: new Date() 
+//       });
+
+//       io.emit('newAlert', { 
+//         _id: alert._id, 
+//         alertMessage, 
+//         patientFormId: assessment.PatientForm._id ,
+//         viewedBy:[], 
+//         user: { id: assessment.PatientForm.user._id, name: user.name, surname: user.surname },
+//         createdAtAss: alert.createdAt,
+//         createdAt: alert.createdAt, // ใช้ createdAt ของ alert เอง
+//         patientFormCreatedAt: patientFormCreatedAt || null, 
+//         patientFormUpdatedAt : patientFormUpdatedAt || null,
+//         updatedAt: alert.updatedAt,
+//       });
+
+//     }
+
+//     await assessment.save();
+
+//     res.send({ status: "ok", message: "Assessment updated successfully." });
+//   } catch (error) {
+//     console.error("Error:", error);
+//     res.status(500).send({ status: "error", message: "An error occurred while updating assessment." });
+//   }
+// });
 
 app.put("/updateassessment/:id", async (req, res) => {
   const { id } = req.params;
@@ -4152,77 +5243,70 @@ app.put("/updateassessment/:id", async (req, res) => {
     assessment.status_name = status_name;
     assessment.PPS = PPS;
 
-    // ตรวจสอบว่ามีการเปลี่ยนแปลงสถานะจาก 'เคสฉุกเฉิน'
-    if (previousStatus === 'เคสฉุกเฉิน' && status_name !== 'เคสฉุกเฉิน') {
-      console.log(`Deleting alert for patientFormId: ${assessment.PatientForm._id} with message: 'เป็นเคสฉุกเฉิน'`);
-      
-      // ลบ alert ที่เกี่ยวข้อง
-      const deleteResult = await Alert.deleteOne({
-        patientFormId: assessment.PatientForm._id,
-        alertMessage: 'เป็นเคสฉุกเฉิน'
-      });
+    console.log(`Deleting alert for patientFormId: ${assessment.PatientForm._id} with alertType: 'assessment'`);
+    await Alert.deleteMany({
+      patientFormId: assessment.PatientForm._id,
+      alertType: 'assessment'
+    });
 
-      console.log(`Delete result: ${deleteResult}`);
+    io.emit('deletedAlert', { patientFormId: assessment.PatientForm._id, alertType: 'assessment' });
 
-      io.emit('deletedAlert', { patientFormId: assessment.PatientForm._id, alertMessage: 'เป็นเคสฉุกเฉิน' });
+    let alertMessage = status_name; 
+    const user = await User.findById(assessment.PatientForm.user._id).select('name surname');
+    if (!user) throw new Error('User not found');
 
-    }
-    let alert;
+    let alert = await Alert.create({
+      patientFormId: assessment.PatientForm._id,
+      alertMessage,
+      user: assessment.PatientForm.user._id,
+      MPersonnel,
+      createdAtAss: new Date(),
+      alertType: 'assessment' 
+    });
+    const populatedAlert = await Alert.findById(alert._id)
+    .populate("MPersonnel", "nametitle name surname") 
+    .exec();
 
-    // ถ้าเป็นเคสฉุกเฉินให้สร้าง alert ใหม่
-    if (status_name === 'เคสฉุกเฉิน' && previousStatus !== 'เคสฉุกเฉิน') {
-      const alertMessage = `เป็นเคสฉุกเฉิน`;
-      const patientFormCreatedAt = assessment.PatientForm.createdAt;
-      const patientFormUpdatedAt = assessment.PatientForm.updatedAt;
-      const user = await User.findById(assessment.PatientForm.user._id).select('name surname');
-      if (!user) throw new Error('User not found');
-      console.log(`Creating alert for patientFormId: ${assessment.PatientForm._id} with message: 'เป็นเคสฉุกเฉิน'`);
-      alert = await Alert.create({
-        patientFormId: assessment.PatientForm._id,
-        alertMessage,
-        user: assessment.PatientForm.user._id,
-        createdAtAss: new Date() 
-      });
 
-      io.emit('newAlert', { 
-        _id: alert._id, 
-        alertMessage, 
-        patientFormId: assessment.PatientForm._id ,
-        viewedBy:[], 
-        user: { id: assessment.PatientForm.user._id, name: user.name, surname: user.surname },
-        createdAtAss: alert.createdAt,
-        createdAt: alert.createdAt, // ใช้ createdAt ของ alert เอง
-        patientFormCreatedAt: patientFormCreatedAt || null, 
-        patientFormUpdatedAt : patientFormUpdatedAt || null,
-        updatedAt: alert.updatedAt,
-      });
-
-    }
+    io.emit('newAlert', { 
+      _id: alert._id, 
+      alertMessage, 
+      alertType: 'assessment',
+      patientFormId: assessment.PatientForm._id,
+      patientFormCreatedAt: assessment.PatientForm.createdAt || null, 
+      patientFormUpdatedAt : assessment.PatientForm.updatedAt || null,
+      createdAt: alert.createdAt,
+      createdAtAss: alert.createdAt,
+      updatedAt: alert.updatedAt,
+      user: { id: assessment.PatientForm.user._id, name: user.name, surname: user.surname },
+      MPersonnel: populatedAlert.MPersonnel
+      ? { id: populatedAlert.MPersonnel._id, nametitle: populatedAlert.MPersonnel.nametitle, name: populatedAlert.MPersonnel.name, surname: populatedAlert.MPersonnel.surname }
+      : null,
+      viewedBy: [] ,
+      excludeMPersonnel: MPersonnel 
+    });
 
     await assessment.save();
 
-    res.send({ status: "ok", message: "Assessment updated successfully." });
+    res.send({ status: "ok", message: "Assessment updated successfully and alert recreated." });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).send({ status: "error", message: "An error occurred while updating assessment." });
   }
 });
 
-
 app.get("/assessment/:assessmentId", async (req, res) => {
-  const { assessmentId } = req.params; // รับ assessmentId จาก URL
+  const { assessmentId } = req.params; 
 
   try {
-    // ค้นหา Assessment โดยใช้ assessmentId
     const assessment = await Assessment.findById(assessmentId)
-      .populate("history.updatedBy", "name surname") // ดึงข้อมูลชื่อของผู้ที่อัพเดตจาก MPersonnel
+      .populate("history.updatedBy", "name surname") 
       .exec();
 
     if (!assessment) {
       return res.status(404).json({ message: "Assessment not found" });
     }
 
-    // ส่งข้อมูลของ Assessment รวมถึง history
     res.json({ data: assessment });
   } catch (error) {
     console.error("Error fetching assessment:", error);
@@ -5675,6 +6759,9 @@ app.get("/users", async (req, res) => {
 
     const usersWithChats = await Promise.all(
       updatedUsers.map(async (user) => {
+
+        if (!user) return null;
+
         const userRooms = rooms.filter((room) =>
           room.participants.some((p) => String(p.id) === String(user._id))
         );
@@ -6095,7 +7182,7 @@ app.get("/allReadinessAssessments", async (req, res) => {
 // Example in Express.js
 app.get('/completedAssessmentsCount', async (req, res) => {
   try {
-    const completedCount = await Assessment.countDocuments({ status_name: "จบการรักษา" });
+    const completedCount = await Assessment.countDocuments({ status_name: "สิ้นสุดการรักษา" });
     res.json({ count: completedCount });
   } catch (error) {
     res.status(500).json({ error: 'Error fetching completed assessments count' });
