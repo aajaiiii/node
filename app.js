@@ -50,7 +50,7 @@ admin.initializeApp({
   }),
   storageBucket: 'gs://homeward-422311.appspot.com'
 });
-const JWT_REFRESH_SECRET = 'hvdvay6ert72eerr839289()aiyg8t87qt724tyty393293883uhefiuh78ttq3ifi78272jbkj?[]]pou89ywe';
+// const JWT_REFRESH_SECRET = 'hvdvay6ert72eerr839289()aiyg8t87qt724tyty393293883uhefiuh78ttq3ifi78272jbkj?[]]pou89ywe';
 
 const JWT_SECRET =
   "hvdvay6ert72839289()aiyg8t87qt72393293883uhefiuh78ttq3ifi78272jbkj?[]]pou89ywe";
@@ -137,15 +137,12 @@ app.post("/addadmin", async (req, res) => {
       return res.json({ error: "มีชื่อผู้ใช้นี้อยู่ในระบบแล้ว" });
     }
 
-  // ตรวจสอบว่าอีเมลถูกใช้งานแล้วและมีการยืนยันหรือไม่
   const existingUser = await Admins.findOne({ email });
 
   if (existingUser) {
     if (existingUser.isEmailVerified) {
-      // ถ้าอีเมลถูกยืนยันแล้ว
       return res.json({ error: "อีเมลนี้ถูกยืนยันแล้ว ไม่สามารถเพิ่มบัญชีใหม่ได้" });
     }
-    // ถ้ายังไม่ได้ยืนยันอีเมล
     return res.json({ error: "อีเมลนี้ถูกใช้งานแล้วแต่ยังไม่ได้ยืนยัน" });
   }
     await Admins.create({
@@ -206,7 +203,6 @@ app.post("/addadmin", async (req, res) => {
     };
     
 
-    // ส่งอีเมล
     const info = await transporter.sendMail(mailOptions);
     // console.log("✅ อีเมลถูกส่งแล้ว:", info.response);
 
@@ -466,7 +462,7 @@ app.post("/login", async (req, res) => {
     return res.json({ error: "User Not found" });
   }
   if (await bcrypt.compare(password, user.password)) {
-    const token = jwt.sign({ username: user.username }, JWT_SECRET, {
+    const token = jwt.sign({userId: user._id, username: user.username }, JWT_SECRET, {
       expiresIn: '7d',
     });
 
@@ -1329,6 +1325,31 @@ app.get("/medicalInformation/:id", async (req, res) => {
     res.status(500).send({ status: "error", message: "Internal Server Error" });
   }
 });
+app.post("/medicalInformation/batch", async (req, res) => {
+  const { userIds } = req.body; // รับค่า userIds เป็น array
+  try {
+    const medicalInfos = await MedicalInformation.find({ user: { $in: userIds } });
+
+    // จัดรูปแบบข้อมูลให้อยู่ในรูปแบบ { userId: data }
+    const medicalDataMap = medicalInfos.reduce((acc, info) => {
+      acc[info.user] = {
+        hn: info.HN,
+        an: info.AN,
+        diagnosis: info.Diagnosis,
+      };
+      return acc;
+    }, {});
+
+    res.send({ status: "ok", data: medicalDataMap });
+  } catch (error) {
+    console.error("Error fetching medical data:", error);
+    res.status(500).send({ status: "error", message: "Internal Server Error" });
+  }
+});
+
+
+
+
 //แสดงแล้วแต่ ไม่มีบันทึกมันก็แสดงยังไม่มีประเมิน
 // app.get("/latest-assessments", async (req, res) => {
 //   try {
@@ -3224,7 +3245,8 @@ app.post('/updateuserinfo', async (req, res) => {
             ID_card_number,
             nationality,
             Address,
-            // AdddataFirst: true,
+            AdddataFirst: true,
+            acceptPDPA:true
           },
         }
       );
@@ -4053,7 +4075,7 @@ app.post('/update-default-threshold', async (req, res) => {
   }
 });
 
-
+//แบบแก้ไขรายบุคคล
 app.post("/update-threshold", async (req, res) => {
   const { userId, min, max,painscore } = req.body;
   try {
@@ -4109,6 +4131,43 @@ app.post('/get-threshold', async (req, res) => {
     }
   } catch (error) {
     console.error('Error retrieving threshold:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
+
+const checkThresholdMatch = (userThreshold, defaultThreshold) => {
+  const fields = ['SBP', 'DBP', 'PulseRate', 'Temperature', 'DTX', 'Respiration', 'Painscore'];
+  
+  return fields.every(field => {
+    if (field === 'Painscore') {
+      return userThreshold[field] === defaultThreshold[field];
+    } else {
+      return userThreshold[field]?.min === defaultThreshold[field]?.min &&
+             userThreshold[field]?.max === defaultThreshold[field]?.max;
+    }
+  });
+};
+
+app.get('/alluserwiththreshold', async (req, res) => {
+  try {
+    const defaultThreshold = await DefaultThreshold.findOne();
+    if (!defaultThreshold) {
+      return res.status(404).json({ status: 'error', message: 'DefaultThreshold not found' });
+    }
+
+    const users = await UserThreshold.find();
+
+    const usersWithMatchingThreshold = users.map(user => {
+      const isMatch = checkThresholdMatch(user, defaultThreshold); 
+      return {
+        ...user.toObject(),
+        thresholdMatch: isMatch, 
+      };
+    });
+
+    res.json({ status: 'success', data: usersWithMatchingThreshold });
+  } catch (error) {
+    console.error("Error fetching data:", error);
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
@@ -4827,6 +4886,7 @@ app.get("/alerts", async (req, res) => {
           }
         : null; // กำหนดเป็น null ถ้าไม่มีค่า MPersonnel
 
+        
       return {
         _id: alert._id,
         alertMessage: alert.alertMessage,
@@ -7462,7 +7522,7 @@ app.get('/completedAssessmentsCount', async (req, res) => {
 //   server.listen(PORT, () => {
 //     console.log('Server is running on port 5000');
 //   });
-server.listen(5000, () => {
+server.listen(5000, '0.0.0.0',() => {
   console.log('Server is running on port 5000');
 });
 
