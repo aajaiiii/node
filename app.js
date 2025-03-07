@@ -3485,49 +3485,46 @@ app.get("/getcaregiver/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
-    if (!id) {
-      return res.status(400).send({
-        status: "error",
-        message: "ID is required",
+      if (!id) {
+          return res.status(400).send({
+              status: "error",
+              message: "ID is required",
+          });
+      }
+
+      // ค้นหา caregiver ทั้งหมดที่เกี่ยวข้อง
+      const caregivers = await Caregiver.find(
+          { "userRelationships.user": id } // ค้นหา userRelationships.user ที่ตรงกับ id
+      ).populate("userRelationships.user", "name email").lean(); // ✅ ใช้ lean() เพื่อดึง JSON
+
+      // กรองเฉพาะ userRelationships ที่เกี่ยวข้องกับ userId
+      const filteredCaregivers = caregivers.map((caregiver) => {
+          const relationshipData = caregiver.userRelationships.find(rel => rel.user._id.toString() === id);
+
+          return {
+              _id: caregiver._id,
+              ID_card_number: caregiver.ID_card_number,
+              name: caregiver.name,
+              surname: caregiver.surname,
+              tel: caregiver.tel,
+              relationship: relationshipData ? relationshipData.relationship : "ไม่ระบุ", // ✅ เพิ่ม relationship
+          };
       });
-    }
 
-    // ค้นหา caregiver ทั้งหมดที่เกี่ยวข้อง
-    const caregivers = await Caregiver.find(
-      { "userRelationships.user": id } // ค้นหา userRelationships.user ที่ตรงกับ id
-    ).populate("userRelationships.user", "name email"); // Populate user สำหรับข้อมูลเพิ่มเติม
+      res.status(200).send({
+          status: "ok",
+          data: filteredCaregivers,
+      });
 
-    // if (!caregivers || caregivers.length === 0) {
-    //   return res.status(404).send({
-    //     status: "error",
-    //     message: "No caregivers found for this user",
-    //   });
-    // }
-
-    // กรองเฉพาะ userRelationships ที่เกี่ยวข้องกับ userId
-    const filteredCaregivers = caregivers.map((caregiver) => ({
-      _id: caregiver._id,
-      ID_card_number: caregiver.ID_card_number,
-      name: caregiver.name,
-      surname: caregiver.surname,
-      tel: caregiver.tel,
-      userRelationships: caregiver.userRelationships.filter(
-        (rel) => rel.user._id.toString() === id
-      ),
-    }));
-
-    res.status(200).send({
-      status: "ok",
-      data: filteredCaregivers,
-    });
   } catch (error) {
-    console.error("Error fetching caregivers:", error);
-    res.status(500).send({
-      status: "error",
-      message: "Internal Server Error",
-    });
+      console.error("Error fetching caregivers:", error);
+      res.status(500).send({
+          status: "error",
+          message: "Internal Server Error",
+      });
   }
 });
+
 
 //แก้ไขผู้ป่วย แอป
 app.post("/updateuserapp", async (req, res) => {
