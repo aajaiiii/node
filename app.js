@@ -50,7 +50,7 @@ admin.initializeApp({
   }),
   storageBucket: 'gs://homeward-422311.appspot.com'
 });
-const JWT_REFRESH_SECRET = 'hvdvay6ert72eerr839289()aiyg8t87qt724tyty393293883uhefiuh78ttq3ifi78272jbkj?[]]pou89ywe';
+// const JWT_REFRESH_SECRET = 'hvdvay6ert72eerr839289()aiyg8t87qt724tyty393293883uhefiuh78ttq3ifi78272jbkj?[]]pou89ywe';
 
 const JWT_SECRET =
   "hvdvay6ert72839289()aiyg8t87qt72393293883uhefiuh78ttq3ifi78272jbkj?[]]pou89ywe";
@@ -137,15 +137,12 @@ app.post("/addadmin", async (req, res) => {
       return res.json({ error: "มีชื่อผู้ใช้นี้อยู่ในระบบแล้ว" });
     }
 
-  // ตรวจสอบว่าอีเมลถูกใช้งานแล้วและมีการยืนยันหรือไม่
   const existingUser = await Admins.findOne({ email });
 
   if (existingUser) {
     if (existingUser.isEmailVerified) {
-      // ถ้าอีเมลถูกยืนยันแล้ว
       return res.json({ error: "อีเมลนี้ถูกยืนยันแล้ว ไม่สามารถเพิ่มบัญชีใหม่ได้" });
     }
-    // ถ้ายังไม่ได้ยืนยันอีเมล
     return res.json({ error: "อีเมลนี้ถูกใช้งานแล้วแต่ยังไม่ได้ยืนยัน" });
   }
     await Admins.create({
@@ -206,7 +203,6 @@ app.post("/addadmin", async (req, res) => {
     };
     
 
-    // ส่งอีเมล
     const info = await transporter.sendMail(mailOptions);
     // console.log("✅ อีเมลถูกส่งแล้ว:", info.response);
 
@@ -389,11 +385,18 @@ app.post('/send-otp3', async (req, res) => {
     }
 
     // ตรวจสอบว่าอีเมลที่ส่งมามีการยืนยันแล้วหรือไม่
+    // const existingUser = await mongoose.model('User').findOne({ email });
+    // if (existingUser && existingUser.isEmailVerified) {
+    //   return res.status(400).json({ error: 'อีเมลนี้ได้รับการยืนยันแล้ว' });
+    // }
     const existingUser = await mongoose.model('User').findOne({ email });
     if (existingUser && existingUser.isEmailVerified) {
-      return res.status(400).json({ error: 'อีเมลนี้ได้รับการยืนยันแล้ว' });
+      return res.status(200).json({ 
+        success: false, 
+        status: "verified", 
+        message: "อีเมลนี้ได้รับการยืนยันแล้ว" 
+      });
     }
-
     // สร้าง OTP
     const otp = crypto.randomInt(100000, 999999).toString();
     await OTPModel.updateOne({ username }, { otp }, { upsert: true });
@@ -458,6 +461,7 @@ app.post('/verify-otp3', async (req, res) => {
   }
 });
 
+//looginadmin
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
@@ -466,7 +470,7 @@ app.post("/login", async (req, res) => {
     return res.json({ error: "User Not found" });
   }
   if (await bcrypt.compare(password, user.password)) {
-    const token = jwt.sign({ username: user.username }, JWT_SECRET, {
+    const token = jwt.sign({userId: user._id, username: user.username }, JWT_SECRET, {
       expiresIn: '7d',
     });
 
@@ -627,6 +631,7 @@ app.post("/updateadmin/:id", async (req, res) => {
   }
 });
 
+//ดึงข้อมูลผู้ใช้addmin
 app.post("/profile", async (req, res) => {
   const { token } = req.body;
   try {
@@ -658,12 +663,12 @@ app.post("/profile", async (req, res) => {
 });
 
 
-app.post("/logout", (req, res) => {
-  const refreshToken = req.cookies.refreshToken;
-  refreshTokens = refreshTokens.filter(token => token !== refreshToken);
-  res.clearCookie('refreshToken');
-  res.sendStatus(204);
-});
+// app.post("/logout", (req, res) => {
+//   const refreshToken = req.cookies.refreshToken;
+//   refreshTokens = refreshTokens.filter(token => token !== refreshToken);
+//   res.clearCookie('refreshToken');
+//   res.sendStatus(204);
+// });
 
 //แพทย์
 // app.get("/check-equip-name", async (req, res) => {
@@ -1329,227 +1334,29 @@ app.get("/medicalInformation/:id", async (req, res) => {
     res.status(500).send({ status: "error", message: "Internal Server Error" });
   }
 });
-//แสดงแล้วแต่ ไม่มีบันทึกมันก็แสดงยังไม่มีประเมิน
-// app.get("/latest-assessments", async (req, res) => {
-//   try {
-//     const result = await User.aggregate([
-//       // 🔹 Join กับ PatientForm (หาข้อมูลฟอร์มของผู้ใช้)
-//       {
-//         $lookup: {
-//           from: "PatientForm",
-//           localField: "_id",
-//           foreignField: "user",
-//           as: "patientForms"
-//         }
-//       },
-//       { $unwind: { path: "$patientForms", preserveNullAndEmptyArrays: true } },
+app.post("/medicalInformation/batch", async (req, res) => {
+  const { userIds } = req.body; // รับค่า userIds เป็น array
+  try {
+    const medicalInfos = await MedicalInformation.find({ user: { $in: userIds } });
 
-//       // 🔹 Join กับ Assessment (หาข้อมูลการประเมิน)
-//       {
-//         $lookup: {
-//           from: "Assessment",
-//           localField: "patientForms._id",
-//           foreignField: "PatientForm",
-//           as: "assessments"
-//         }
-//       },
-//       { $unwind: { path: "$assessments", preserveNullAndEmptyArrays: true } },
+    // จัดรูปแบบข้อมูลให้อยู่ในรูปแบบ { userId: data }
+    const medicalDataMap = medicalInfos.reduce((acc, info) => {
+      acc[info.user] = {
+        hn: info.HN,
+        an: info.AN,
+        diagnosis: info.Diagnosis,
+      };
+      return acc;
+    }, {});
 
-//       // 🔹 เลือกเฉพาะข้อมูลล่าสุดของ Assessment
-//       { $sort: { "assessments.createdAt": -1 } },
-
-//       // 🔹 Group ข้อมูล เพื่อให้มีแค่ 1 record ต่อ User
-//       {
-//         $group: {
-//           _id: "$_id",
-//           username: { $first: "$username" },
-//           latestStatusName: { $first: "$assessments.status_name" }
-//         }
-//       }
-//     ]);
-
-//     res.json({ status: "ok", data: result });
-//   } catch (error) {
-//     console.error("Error fetching assessments:", error);
-//     res.status(500).json({ status: "error", message: "Internal Server Error" });
-//   }
-// });
+    res.send({ status: "ok", data: medicalDataMap });
+  } catch (error) {
+    console.error("Error fetching medical data:", error);
+    res.status(500).send({ status: "error", message: "Internal Server Error" });
+  }
+});
 
 
-// // ดึงข้อมูลผู้ป่วยมาโชว์
-
-//ได้แล้ว แต่อยากแก้ให้แสดงสัญญาชีพ
-// app.get("/latest-assessments1", async (req, res) => {
-//   try {
-//     const result = await User.aggregate([
-//       // 🔹 Join กับ PatientForm (ดึงข้อมูลฟอร์มของผู้ใช้)
-//       {
-//         $lookup: {
-//           from: "PatientForm",
-//           localField: "_id",
-//           foreignField: "user",
-//           as: "patientForms"
-//         }
-//       },
-//       { $unwind: { path: "$patientForms", preserveNullAndEmptyArrays: true } },
-
-//       // 🔹 Join กับ Assessment (ดึงข้อมูลการประเมิน)
-//       {
-//         $lookup: {
-//           from: "Assessment",
-//           localField: "patientForms._id",
-//           foreignField: "PatientForm",
-//           as: "assessments"
-//         }
-//       },
-//       { $unwind: { path: "$assessments", preserveNullAndEmptyArrays: true } },
-
-//       // 🔹 เลือกเฉพาะข้อมูลล่าสุดของ Assessment
-//       { $sort: { "assessments.createdAt": -1 } },
-
-//       // 🔹 Group ข้อมูล เพื่อให้มีแค่ 1 record ต่อ User
-//       {
-//         $group: {
-//           _id: "$_id",
-//           username: { $first: "$username" },
-//           patientFormExists: { $first: { $cond: { if: { $ifNull: ["$patientForms", false] }, then: true, else: false } } },
-//           latestStatusName: { $first: "$assessments.status_name" }
-//         }
-//       },
-
-//       // 🔹 แก้ค่า latestStatusName ตามเงื่อนไข
-//       {
-//         $project: {
-//           _id: 1,
-//           username: 1,
-//           latestStatusName: {
-//             $cond: {
-//               if: { $eq: ["$patientFormExists", false] },
-//               then: "ยังไม่มีการบันทึก",
-//               else: { $ifNull: ["$latestStatusName", "รอประเมิน"] }
-//             }
-//           }
-//         }
-//       }
-//     ]);
-
-//     res.json({ status: "ok", data: result });
-//   } catch (error) {
-//     console.error("Error fetching assessments:", error);
-//     res.status(500).json({ status: "error", message: "Internal Server Error" });
-//   }
-// });
-//มันเอาass ล่าสุดมาแสดงทุกอัน
-// app.get("/latest-assessments", async (req, res) => { 
-//   try {
-//     const result = await User.aggregate([
-//       // 🔹 Join กับ PatientForm
-//       {
-//         $lookup: {
-//           from: "PatientForm",
-//           localField: "_id",
-//           foreignField: "user",
-//           as: "patientForms"
-//         }
-//       },
-//       { $unwind: { path: "$patientForms", preserveNullAndEmptyArrays: true } },
-
-//       // 🔹 Join กับ Assessment
-//       {
-//         $lookup: {
-//           from: "Assessment",
-//           localField: "patientForms._id",
-//           foreignField: "PatientForm",
-//           as: "assessments"
-//         }
-//       },
-//       { $unwind: { path: "$assessments", preserveNullAndEmptyArrays: true } },
-
-//       // 🔹 Join กับ UserThresholds
-//       {
-//         $lookup: {
-//           from: "UserThresholds",
-//           localField: "_id",
-//           foreignField: "user",
-//           as: "thresholds"
-//         }
-//       },
-//       { $unwind: { path: "$thresholds", preserveNullAndEmptyArrays: true } },
-
-//       // 🔹 ตรวจสอบว่าค่าของ PatientForm อยู่ในช่วง UserThresholds หรือไม่
-//       {
-//         $addFields: {
-//           isAbnormal: {
-//             $or: [
-//               { $lt: ["$patientForms.SBP", "$thresholds.SBP.min"] },
-//               { $gt: ["$patientForms.SBP", "$thresholds.SBP.max"] },
-//               { $lt: ["$patientForms.DBP", "$thresholds.DBP.min"] },
-//               { $gt: ["$patientForms.DBP", "$thresholds.DBP.max"] },
-//               { $lt: ["$patientForms.PulseRate", "$thresholds.PulseRate.min"] },
-//               { $gt: ["$patientForms.PulseRate", "$thresholds.PulseRate.max"] },
-//               { $lt: ["$patientForms.Temperature", "$thresholds.Temperature.min"] },
-//               { $gt: ["$patientForms.Temperature", "$thresholds.Temperature.max"] },
-//               { $lt: ["$patientForms.DTX", "$thresholds.DTX.min"] },
-//               { $gt: ["$patientForms.DTX", "$thresholds.DTX.max"] },
-//               { $lt: ["$patientForms.Respiration", "$thresholds.Respiration.min"] },
-//               { $gt: ["$patientForms.Respiration", "$thresholds.Respiration.max"] }
-//             ]
-//           }
-//         }
-//       },
-
-//       // 🔹 เลือกเฉพาะข้อมูลล่าสุดของ Assessment
-//       { $sort: { "assessments.createdAt": -1 } },
-
-//       // 🔹 Group ข้อมูลให้มีแค่ 1 record ต่อ User
-//       {
-//         $group: {
-//           _id: "$_id",
-//           username: { $first: "$username" },
-//           patientFormExists: { 
-//             $first: { 
-//               $cond: { if: { $ifNull: ["$patientForms", false] }, then: true, else: false } 
-//             } 
-//           },
-//           latestAssessmentStatus: { $first: "$assessments.status_name" },
-//           isAbnormal: { $first: "$isAbnormal" }
-//         }
-//       },
-
-//       // 🔹 ปรับค่า latestStatusName ตามลำดับความสำคัญ
-//       {
-//         $project: {
-//           _id: 1,
-//           username: 1,
-//           latestStatusName: {
-//             $cond: {
-//               if: { $eq: ["$patientFormExists", false] },
-//               then: "ยังไม่มีการบันทึก",
-//               else: {
-//                 $cond: {
-//                   if: { $ifNull: ["$latestAssessmentStatus", false] }, // ถ้ามี status_name แล้ว
-//                   then: "$latestAssessmentStatus", // ใช้ status_name ที่มีอยู่
-//                   else: {
-//                     $cond: {
-//                       if: "$isAbnormal",
-//                       then: "สัญญาณชีพผิดปกติ",
-//                       else: "สัญญาณชีพปกติ"
-//                     }
-//                   }
-//                 }
-//               }
-//             }
-//           }
-//         }
-//       }
-//     ]);
-
-//     res.json({ status: "ok", data: result });
-//   } catch (error) {
-//     console.error("Error fetching assessments:", error);
-//     res.status(500).json({ status: "error", message: "Internal Server Error" });
-//   }
-// });
 app.get("/latest-assessments", async (req, res) => { 
   try {
     const result = await User.aggregate([
@@ -1591,27 +1398,6 @@ app.get("/latest-assessments", async (req, res) => {
       },
       { $unwind: { path: "$thresholds", preserveNullAndEmptyArrays: true } },
 
-      // 🔹 ตรวจสอบค่าสัญญาณชีพว่าเกินค่าปกติหรือไม่
-      // {
-      //   $addFields: {
-      //     isAbnormal: {
-      //       $or: [
-      //         { $lt: ["$patientForms.SBP", "$thresholds.SBP.min"] },
-      //         { $gt: ["$patientForms.SBP", "$thresholds.SBP.max"] },
-      //         { $lt: ["$patientForms.DBP", "$thresholds.DBP.min"] },
-      //         { $gt: ["$patientForms.DBP", "$thresholds.DBP.max"] },
-      //         { $lt: ["$patientForms.PulseRate", "$thresholds.PulseRate.min"] },
-      //         { $gt: ["$patientForms.PulseRate", "$thresholds.PulseRate.max"] },
-      //         { $lt: ["$patientForms.Temperature", "$thresholds.Temperature.min"] },
-      //         { $gt: ["$patientForms.Temperature", "$thresholds.Temperature.max"] },
-      //         { $lt: ["$patientForms.DTX", "$thresholds.DTX.min"] },
-      //         { $gt: ["$patientForms.DTX", "$thresholds.DTX.max"] },
-      //         { $lt: ["$patientForms.Respiration", "$thresholds.Respiration.min"] },
-      //         { $gt: ["$patientForms.Respiration", "$thresholds.Respiration.max"] }
-      //       ]
-      //     }
-      //   }
-      // },
 // 🔹 ตรวจสอบค่าสัญญาณชีพว่าเกินค่าปกติหรือไม่
 {
   $addFields: {
@@ -1694,43 +1480,7 @@ app.get("/alluser", async (req, res) => {
     console.log(error);
   }
 });
-// app.get("/checkVitals/:patientFormId", async (req, res) => {
-//   try {
-//     const { patientFormId } = req.params;
 
-//     // ดึงข้อมูล PatientForm
-//     const patientForm = await PatientForm.findById(patientFormId).populate("user");
-//     if (!patientForm) {
-//       return res.status(404).json({ message: "ไม่พบข้อมูล PatientForm" });
-//     }
-
-//     // ดึงค่าของ UserThreshold
-//     const userThreshold = await UserThreshold.findOne({ user: patientForm.user._id });
-//     if (!userThreshold) {
-//       return res.status(404).json({ message: "ไม่พบข้อมูล UserThreshold" });
-//     }
-
-//     // ตรวจสอบว่าค่าวัดของคนไข้อยู่ในเกณฑ์หรือไม่
-//     const isAbnormal = (key) => {
-//       if (!userThreshold[key]) return false; // ถ้าไม่มี threshold ให้ข้ามไป
-//       return (
-//         patientForm[key] < userThreshold[key].min ||
-//         patientForm[key] > userThreshold[key].max
-//       );
-//     };
-
-//     const abnormalKeys = ["SBP", "DBP", "PulseRate", "Temperature", "DTX", "Respiration"].filter(isAbnormal);
-
-//     if (abnormalKeys.length > 0) {
-//       return res.json({ status: "สัญญาณชีพผิดปกติ", abnormalKeys });
-//     } else {
-//       return res.json({ status: "สัญญาณชีพปกติ" });
-//     }
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ message: "เกิดข้อผิดพลาดในการประมวลผล" });
-//   }
-// });
 app.get("/checkVitals/:patientFormId", async (req, res) => {
   try {
     const { patientFormId } = req.params;
@@ -1782,34 +1532,6 @@ app.get("/checkVitals/:patientFormId", async (req, res) => {
   }
 });
 
-// app.get('/latest-assessments', async (req, res) => {
-//   try {
-//     const result = await User.aggregate([
-//       {
-//         $lookup: {
-//           from: 'assessments',
-//           localField: '_id',
-//           foreignField: 'user',
-//           as: 'assessments',
-//         },
-//       },
-//       { $unwind: { path: '$assessments', preserveNullAndEmptyArrays: true } },
-//       { $sort: { 'assessments.createdAt': -1 } },
-//       {
-//         $group: {
-//           _id: '$_id',
-//           username: { $first: '$username' },
-//           status_name: { $first: '$assessments.status_name' },
-//         },
-//       },
-//     ]);
-
-//     res.json(result); // ส่งผลลัพธ์เป็น JSON
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).send('Something went wrong');
-//   }
-// });
 
 app.get("/user/:id", async (req, res) => {
   const { id } = req.params;
@@ -1887,7 +1609,7 @@ app.delete("/deleteMPersonnel/:id", async (req, res) => {
       // ลบแพทย์ออกจาก participants ในห้องที่มีแพทย์นี้อยู่
       const roomsUpdated = await Room.updateMany(
         { "participants.id": mpersonnelId },
-        { $pull: { participants: { id: mpersonnelId } } } // ลบแพทย์ออกจาก participants
+        { $pull: { participants: { id: mpersonnelId } } }
       );
 
       if (roomsUpdated.nModified > 0) {
@@ -2745,452 +2467,6 @@ app.post("/userdata", async (req, res) => {
 });
 
 //เพิ่มข้อมูลครั้งแรก
-
-// app.post('/updateuserinfo', async (req, res) => {
-//   const {
-//     username,
-//     name,
-//     surname,
-//     tel,
-//     email,
-//     gender,
-//     birthday,
-//     ID_card_number,
-//     nationality,
-//     Address,
-//     user, // id ของ user
-//     caregivers, // array ของข้อมูลผู้ดูแล
-//   } = req.body;
-
-//   try {
-//     if (username) {
-//       // แก้ไขข้อมูลของ User
-//       await User.updateOne(
-//         { username },
-//         {
-//           $set: {
-//             name,
-//             surname,
-//             tel,
-//             email,
-//             gender,
-//             birthday,
-//             ID_card_number,
-//             nationality,
-//             Address,
-//             AdddataFirst: true,
-//           },
-//         }
-//       );
-
-//       for (const caregiver of caregivers) {
-//         const existingCaregiver = await Caregiver.findOne({
-//           user,
-//           name: caregiver.caregivername,
-//         });
-
-//         if (existingCaregiver) {
-//           // อัปเดตข้อมูลผู้ดูแลที่มีอยู่
-//           await Caregiver.updateOne(
-//             { user, name: caregiver.caregivername },
-//             {
-//               $set: {
-//                 surname: caregiver.caregiversurname,
-//                 tel: caregiver.caregivertel,
-//                 Relationship: caregiver.Relationship,
-//               },
-//             }
-//           );
-//         } else {
-//           // เพิ่มผู้ดูแลใหม่
-//           await Caregiver.create({
-//             user,
-//             name: caregiver.caregivername,
-//             surname: caregiver.caregiversurname,
-//             tel: caregiver.caregivertel,
-//             Relationship: caregiver.Relationship,
-//           });
-//         }
-//       }
-
-//       res.send({ status: 'Ok', data: 'User and Caregivers Updated' });
-//     } else {
-//       res.status(400).send({ error: 'Invalid request data' });
-//     }
-//   } catch (error) {
-//     console.error('Error updating user or caregivers:', error);
-//     return res.status(500).send({ error: 'Error updating user or caregivers' });
-//   }
-// });
-
-// app.post('/updateuserinfo', async (req, res) => {
-//   const {
-//     username,
-//     name,
-//     surname,
-//     tel,
-//     email,
-//     gender,
-//     birthday,
-//     ID_card_number,
-//     nationality,
-//     Address,
-//     user, // id ของ user
-//     caregivers, // array ของข้อมูลผู้ดูแล
-//   } = req.body;
-//   try {
-//     if (username) {
-//       // แก้ไขข้อมูลของ User
-//       await User.updateOne(
-//         { username },
-//         {
-//           $set: {
-//             name,
-//             surname,
-//             tel,
-//             email,
-//             gender,
-//             birthday,
-//             ID_card_number,
-//             nationality,
-//             Address,
-//             // AdddataFirst: true,
-//           },
-//         }
-//       );
-
-//       // จัดการข้อมูล caregivers
-//       for (const caregiver of caregivers) {
-//         if (caregiver._id) {
-//           // หากมี _id ให้แก้ไขข้อมูลผู้ดูแลที่มีอยู่
-//           await Caregiver.updateOne(
-//             { _id: caregiver._id },
-//             {
-//               $set: {
-//                 name: caregiver.caregivername,
-//                 surname: caregiver.caregiversurname,
-//                 tel: caregiver.caregivertel,
-//                 Relationship: caregiver.Relationship,
-//               },
-//             }
-//           );
-//         } else {
-//           // หากไม่มี _id ให้เพิ่มข้อมูลผู้ดูแลใหม่
-//           await Caregiver.create({
-//             user,
-//             name: caregiver.caregivername,
-//             surname: caregiver.caregiversurname,
-//             tel: caregiver.caregivertel,
-//             Relationship: caregiver.Relationship,
-//           });
-//         }
-//       }
-
-//       res.send({ status: 'Ok', data: 'User and Caregivers Updated' });
-//     } else {
-//       res.status(400).send({ error: 'Invalid request data' });
-//     }
-//   } catch (error) {
-//     console.error('Error updating user or caregivers:', error);
-//     return res.status(500).send({ error: 'Error updating user or caregivers' });
-//   }
-// });
-
-
-// app.post('/updateuserinfo', async (req, res) => {
-//   const {
-//     username,
-//     name,
-//     surname,
-//     tel,
-//     email,
-//     gender,
-//     birthday,
-//     ID_card_number,
-//     nationality,
-//     Address,
-//     user, // id ของ user
-//     caregivers, // array ของข้อมูลผู้ดูแล
-//   } = req.body;
-
-//   try {
-//     if (username) {
-//       // อัปเดตข้อมูล User
-//       await User.updateOne(
-//         { username },
-//         {
-//           $set: {
-//             name,
-//             surname,
-//             tel,
-//             email,
-//             gender,
-//             birthday,
-//             ID_card_number,
-//             nationality,
-//             Address,
-//             // AdddataFirst: true,
-//           },
-//         }
-//       );
-
-//       // จัดการข้อมูล caregivers
-//       for (const caregiver of caregivers) {
-//         if (caregiver._id) {
-//           // หากมี _id ให้ตรวจสอบและอัปเดตข้อมูลผู้ดูแลที่มีอยู่
-//           const existingCaregiver = await Caregiver.findOne({ _id: caregiver._id });
-//           if (existingCaregiver) {
-//             await Caregiver.updateOne(
-//               { _id: caregiver._id },
-//               {
-//                 $set: {
-//                   name: caregiver.caregivername,
-//                   surname: caregiver.caregiversurname,
-//                   tel: caregiver.caregivertel,
-//                   Relationship: caregiver.Relationship,
-//                 },
-//               }
-//             );
-//           } else {
-//             // หาก _id ไม่ตรงกับข้อมูลใดๆ ในฐานข้อมูล ให้สร้างใหม่
-//             await Caregiver.create({
-//               user,
-//               name: caregiver.caregivername,
-//               surname: caregiver.caregiversurname,
-//               tel: caregiver.caregivertel,
-//               Relationship: caregiver.Relationship,
-//             });
-//           }
-//         } else {
-//           // หากไม่มี _id ให้สร้างข้อมูลผู้ดูแลใหม่
-//           await Caregiver.create({
-//             user,
-//             name: caregiver.caregivername,
-//             surname: caregiver.caregiversurname,
-//             tel: caregiver.caregivertel,
-//             Relationship: caregiver.Relationship,
-//           });
-//         }
-//       }
-
-//       res.send({ status: 'Ok', data: 'User and Caregivers Updated' });
-//     } else {
-//       res.status(400).send({ error: 'Invalid request data' });
-//     }
-//   } catch (error) {
-//     console.error('Error updating user or caregivers:', error);
-//     res.status(500).send({ error: 'Error updating user or caregivers' });
-//   }
-// });
-
-// app.post('/updateuserinfo', async (req, res) => { 
-//   const {
-//     username,
-//     name,
-//     surname,
-//     tel,
-//     email,
-//     gender,
-//     birthday,
-//     ID_card_number,
-//     nationality,
-//     Address,
-//     user, // id ของ user
-//     caregivers, // array ของข้อมูลผู้ดูแล
-//   } = req.body;
-
-//   try {
-//     if (username) {
-//       // อัปเดตข้อมูล User
-//       await User.updateOne(
-//         { username },
-//         {
-//           $set: {
-//             name,
-//             surname,
-//             tel,
-//             email,
-//             gender,
-//             birthday,
-//             ID_card_number,
-//             nationality,
-//             Address,
-//           },
-//         }
-//       );
-
-//       // จัดการข้อมูล caregivers
-//       for (const caregiver of caregivers) {
-//         if (caregiver._id) {
-//           // หากมี _id ให้ตรวจสอบและอัปเดตข้อมูลผู้ดูแลที่มีอยู่
-//           const existingCaregiver = await Caregiver.findOne({ _id: caregiver._id });
-//           if (existingCaregiver) {
-//             // ตรวจสอบว่า userRelationships มีหรือไม่ ก่อนที่จะใช้ map()
-//             const updatedRelationships = Array.isArray(caregiver.userRelationships)
-//               ? caregiver.userRelationships.map(rel => ({
-//                   user: rel.user,
-//                   relationship: rel.relationship,
-//                 }))
-//               : existingCaregiver.userRelationships; // หากไม่มีการเปลี่ยนแปลงให้เก็บค่าเดิม
-
-//             await Caregiver.updateOne(
-//               { _id: caregiver._id },
-//               {
-//                 $set: {
-//                   name: caregiver.caregivername,
-//                   surname: caregiver.caregiversurname,
-//                   tel: caregiver.caregivertel,
-//                   userRelationships: updatedRelationships, // เก็บค่าที่อัปเดตหรือค่าเดิม
-//                 },
-//               }
-//             );
-//           } else {
-//             // หาก _id ไม่ตรงกับข้อมูลใดๆ ในฐานข้อมูล ให้สร้างใหม่
-//             await Caregiver.create({
-//               user,
-//               ID_card_number:caregiver.ID_card_number,
-//               name: caregiver.caregivername,
-//               surname: caregiver.caregiversurname,
-//               tel: caregiver.caregivertel,
-//               userRelationships: caregiver.userRelationships || [
-//                 {
-//                   user: user, // เพิ่ม user ใหม่ที่เชื่อมโยงกับ caregiver
-//                   relationship: caregiver.Relationship || "-", // เพิ่ม relationship (หรือใช้ "-" หากไม่มี)
-//                 },
-//               ],            });
-//           }
-//         } else {
-//           // หากไม่มี _id ให้สร้างข้อมูลผู้ดูแลใหม่
-//           await Caregiver.create({
-//             user,
-//             ID_card_number:caregiver.ID_card_number,
-//             name: caregiver.caregivername,
-//             surname: caregiver.caregiversurname,
-//             tel: caregiver.caregivertel,
-//             userRelationships: caregiver.userRelationships || [
-//               {
-//                 user: user, // เพิ่ม user ใหม่ที่เชื่อมโยงกับ caregiver
-//                 relationship: caregiver.Relationship || "-", // เพิ่ม relationship (หรือใช้ "-" หากไม่มี)
-//               },
-//             ],          });
-//         }
-//       }
-
-//       res.send({ status: 'Ok', data: 'User and Caregivers Updated' });
-//     } else {
-//       res.status(400).send({ error: 'Invalid request data' });
-//     }
-//   } catch (error) {
-//     console.error('Error updating user or caregivers:', error);
-//     res.status(500).send({ error: 'Error updating user or caregivers' });
-//   }
-// });
-
-//เกือบล่าสุด ตอน ID_card_number ตรงกันมันแก้อันนั้นเลย
-// app.post('/updateuserinfo', async (req, res) => { 
-//   const {
-//     username,
-//     name,
-//     surname,
-//     tel,
-//     email,
-//     gender,
-//     birthday,
-//     ID_card_number,
-//     nationality,
-//     Address,
-//     user, // id ของ user
-//     caregivers, // array ของข้อมูลผู้ดูแล
-//   } = req.body;
-
-//   try {
-//     if (username) {
-//       // อัปเดตข้อมูล User
-//       await User.updateOne(
-//         { username },
-//         {
-//           $set: {
-//             name,
-//             surname,
-//             tel,
-//             email,
-//             gender,
-//             birthday,
-//             ID_card_number,
-//             nationality,
-//             Address,
-//           },
-//         }
-//       );
-
-//       // จัดการข้อมูล caregivers
-//       for (const caregiver of caregivers) {
-//         if (caregiver._id) {
-//           // หากมี _id ให้ตรวจสอบและอัปเดตข้อมูลผู้ดูแลที่มีอยู่
-//           const existingCaregiver = await Caregiver.findOne({ _id: caregiver._id });
-//           if (existingCaregiver) {
-//             // ตรวจสอบว่า userRelationships มีหรือไม่ ก่อนที่จะใช้ map()
-//             const updatedRelationships = Array.isArray(caregiver.userRelationships)
-//               ? caregiver.userRelationships.map(rel => ({
-//                   user: rel.user,
-//                   relationship: rel.relationship,
-//                 }))
-//               : existingCaregiver.userRelationships; // หากไม่มีการเปลี่ยนแปลงให้เก็บค่าเดิม
-
-//             await Caregiver.updateOne(
-//               { _id: caregiver._id },
-//               {
-//                 $set: {
-//                   name: caregiver.name,
-//                   surname: caregiver.surname,
-//                   tel: caregiver.tel,
-//                   userRelationships: updatedRelationships, // เก็บค่าที่อัปเดตหรือค่าเดิม
-//                 },
-//               }
-//             );
-//           } else {
-//             // หาก _id ไม่ตรงกับข้อมูลใดๆ ในฐานข้อมูล ให้สร้างใหม่
-//             await Caregiver.create({
-//               user,
-//               ID_card_number:caregiver.ID_card_number,
-//               name: caregiver.name,
-//               surname: caregiver.surname,
-//               tel: caregiver.tel,
-//               userRelationships: caregiver.userRelationships || [
-//                 {
-//                   user: user, // เพิ่ม user ใหม่ที่เชื่อมโยงกับ caregiver
-//                   relationship: caregiver.Relationship || "-", // เพิ่ม relationship (หรือใช้ "-" หากไม่มี)
-//                 },
-//               ],            });
-//           }
-//         } else {
-//           // หากไม่มี _id ให้สร้างข้อมูลผู้ดูแลใหม่
-//           await Caregiver.create({
-//             user,
-//             ID_card_number:caregiver.ID_card_number,
-//             name: caregiver.name,
-//             surname: caregiver.surname,
-//             tel: caregiver.tel,
-//             userRelationships: caregiver.userRelationships || [
-//               {
-//                 user: user, // เพิ่ม user ใหม่ที่เชื่อมโยงกับ caregiver
-//                 relationship: caregiver.Relationship || "-", // เพิ่ม relationship (หรือใช้ "-" หากไม่มี)
-//               },
-//             ],         
-//           });
-//         }
-//       }
-
-//       res.send({ status: 'Ok', data: 'User and Caregivers Updated' });
-//     } else {
-//       res.status(400).send({ error: 'Invalid request data' });
-//     }
-//   } catch (error) {
-//     console.error('Error updating user or caregivers:', error);
-//     res.status(500).send({ error: 'Error updating user or caregivers' });
-//   }
-// });
-
 app.post('/updateuserinfo', async (req, res) => { 
   console.log('Request Body:', JSON.stringify(req.body, null, 2));
   const {
@@ -3225,6 +2501,7 @@ app.post('/updateuserinfo', async (req, res) => {
             nationality,
             Address,
             // AdddataFirst: true,
+            // acceptPDPA:true
           },
         }
       );
@@ -3481,6 +2758,53 @@ app.post('/reset-password', async (req, res) => {
 //   }
 // });
 
+// app.get("/getcaregiver/:id", async (req, res) => {
+//   const { id } = req.params;
+
+//   try {
+//     if (!id) {
+//       return res.status(400).send({
+//         status: "error",
+//         message: "ID is required",
+//       });
+//     }
+
+//     // ค้นหา caregiver ทั้งหมดที่เกี่ยวข้อง
+//     const caregivers = await Caregiver.find(
+//       { "userRelationships.user": id } // ค้นหา userRelationships.user ที่ตรงกับ id
+//     ).populate("userRelationships.user", "name email"); // Populate user สำหรับข้อมูลเพิ่มเติม
+
+//     // if (!caregivers || caregivers.length === 0) {
+//     //   return res.status(404).send({
+//     //     status: "error",
+//     //     message: "No caregivers found for this user",
+//     //   });
+//     // }
+
+//     // กรองเฉพาะ userRelationships ที่เกี่ยวข้องกับ userId
+//     const filteredCaregivers = caregivers.map((caregiver) => ({
+//       _id: caregiver._id,
+//       ID_card_number: caregiver.ID_card_number,
+//       name: caregiver.name,
+//       surname: caregiver.surname,
+//       tel: caregiver.tel,
+//       userRelationships: caregiver.userRelationships.filter(
+//         (rel) => rel.user._id.toString() === id
+//       ),
+//     }));
+
+//     res.status(200).send({
+//       status: "ok",
+//       data: filteredCaregivers,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching caregivers:", error);
+//     res.status(500).send({
+//       status: "error",
+//       message: "Internal Server Error",
+//     });
+//   }
+// });
 app.get("/getcaregiver/:id", async (req, res) => {
   const { id } = req.params;
 
@@ -3612,84 +2936,6 @@ app.get("/getCaregiverById/:id", async (req, res) => {
   }
 });
 
-
-// app.post("/addcaregiver", async (req, res) => {
-//   const { user, name, surname, tel, Relationship,ID_card_number  } = req.body;
-
-//   if (!user || !name || !surname) {
-//     return res.status(400).send({ error: "ชื่อ และนามสกุล ไม่ควรเป็นค่าว่าง" });
-//   }
-
-//   try {
-//     const existingCaregiver = await Caregiver.findOne({ user, ID_card_number });
-//     if (existingCaregiver) {
-//       return res.status(400).send({
-//         error: "ผู้ป่วยมีผู้ดูแลคนนี้แล้ว",
-//       });
-//     }
-
-//     const newCaregiver = await Caregiver.create({
-//       ID_card_number,
-//       user,
-//       name,
-//       surname,
-//       tel,
-//       Relationship,
-//     });
-
-//     res.send({ status: "Ok", message: "Caregiver added successfully", newCaregiver });
-//   } catch (error) {
-//     console.error("Error adding caregiver:", error);
-//     res.status(500).send({ error: "Error adding caregiver" });
-//   }
-// });
-
-//อันเกือบล่าสุด
-// app.post("/addcaregiver", async (req, res) => {
-//   const { user, name, surname, tel, Relationship, ID_card_number } = req.body;
-
-//   if (!user || !name || !surname) {
-//     return res.status(400).send({ error: "ชื่อ และนามสกุล ไม่ควรเป็นค่าว่าง" });
-//   }
-
-//   try {
-//     const existingCaregiver = await Caregiver.findOne({ ID_card_number });
-
-//     if (existingCaregiver) {
-//       // ถ้ามี Caregiver อยู่แล้ว ให้เช็คว่า user ซ้ำหรือไม่
-//       if (!existingCaregiver.user.includes(user)) {
-//         existingCaregiver.user.push(user); // เพิ่ม user ใหม่ใน array
-//         await existingCaregiver.save();
-//         return res.send({
-//           status: "Ok",
-//           message: "User added to existing caregiver",
-//           existingCaregiver,
-//         });
-//       } else {
-//         return res.status(400).send({ error: "ผู้ป่วยมีผู้ดูแลคนนี้แล้ว" });
-//       }
-//     }
-
-//     // สร้าง Caregiver ใหม่ถ้ายังไม่มี
-//     const newCaregiver = await Caregiver.create({
-//       ID_card_number,
-//       user: [user], // ใส่ user เป็น array
-//       name,
-//       surname,
-//       tel,
-//       Relationship,
-//     });
-
-//     res.send({
-//       status: "Ok",
-//       message: "Caregiver added successfully",
-//       newCaregiver,
-//     });
-//   } catch (error) {
-//     console.error("Error adding caregiver:", error);
-//     res.status(500).send({ error: "Error adding caregiver" });
-//   }
-// });
 app.post("/addcaregiver", async (req, res) => {
   const { user, name, surname, tel, Relationship, ID_card_number } = req.body;
 
@@ -3738,58 +2984,6 @@ app.post("/addcaregiver", async (req, res) => {
     res.status(500).send({ error: "Error adding caregiver" });
   }
 });
-
-// app.post("/deletecaregiver", async (req, res) => {
-//   const { _id } = req.body;
-
-//   if (!_id) {
-//     return res.status(400).send({ error: "Caregiver ID is required" });
-//   }
-
-//   try {
-//     const deletedCaregiver = await Caregiver.findByIdAndDelete(_id);
-//     if (!deletedCaregiver) {
-//       return res.status(404).send({ error: "Caregiver not found" });
-//     }
-
-//     res.send({ status: "Ok", message: "Caregiver deleted successfully" });
-//   } catch (error) {
-//     console.error("Error deleting caregiver:", error);
-//     res.status(500).send({ error: "Error deleting caregiver" });
-//   }
-// });
-
-//เกือบล่าสุด
-// app.post("/deletecaregiver", async (req, res) => {
-//   const { _id, userId } = req.body;  // รับ userId ของผู้ที่ลบ caregiver
-
-//   if (!_id || !userId) {
-//     return res.status(400).send({ error: "Caregiver ID and User ID are required" });
-//   }
-
-//   try {
-//     const deletedCaregiver = await Caregiver.findById(_id);
-//     if (!deletedCaregiver) {
-//       return res.status(404).send({ error: "Caregiver not found" });
-//     }
-
-//     // ลบ user ออกจาก caregiver.user array
-//     deletedCaregiver.user = deletedCaregiver.user.filter(user => user.toString() !== userId.toString());
-
-//     // ถ้าไม่มี user คนอื่นแล้วใน caregiver ให้ลบ caregiver
-//     if (deletedCaregiver.user.length === 0) {
-//       await Caregiver.findByIdAndDelete(_id);
-//       res.send({ status: "Ok", message: "Caregiver deleted successfully" });
-//     } else {
-//       // ถ้ายังมี user อยู่ใน array ก็ให้เซฟ caregiver ไว้
-//       await deletedCaregiver.save();
-//       res.send({ status: "Ok", message: "User removed from caregiver" });
-//     }
-//   } catch (error) {
-//     console.error("Error deleting caregiver:", error);
-//     res.status(500).send({ error: "Error deleting caregiver" });
-//   }
-// });
 
 app.post("/deletecaregiver", async (req, res) => {
   const { _id, userId } = req.body; // รับ Caregiver ID และ User ID ที่ต้องการลบ
@@ -3951,31 +3145,6 @@ app.get('/get-default-threshold', async (req, res) => {
   }
 });
 
-//อันแก้แค่ค่าเริ่มต้นเพื่อนำไปใช้ผู้ใช้ใหม่
-// app.post('/update-default-threshold', async (req, res) => {
-//   const { min, max, painscore } = req.body; 
-//   try {
-//     // ตรวจสอบว่า DefaultThreshold มีอยู่หรือไม่
-//     let defaultThreshold = await DefaultThreshold.findOne();
-//     if (!defaultThreshold) {
-//       defaultThreshold = new DefaultThreshold();
-//     }
-
-//     // อัปเดตค่า Threshold
-//     defaultThreshold.SBP = { min: parseFloat(min.SBP), max: parseFloat(max.SBP) };
-//     defaultThreshold.DBP = { min: parseFloat(min.DBP), max: parseFloat(max.DBP) };
-//     defaultThreshold.PulseRate = { min: parseFloat(min.PulseRate), max: parseFloat(max.PulseRate) };
-//     defaultThreshold.Temperature = { min: parseFloat(min.Temperature), max: parseFloat(max.Temperature) };
-//     defaultThreshold.DTX = { min: parseFloat(min.DTX), max: parseFloat(max.DTX) };
-//     defaultThreshold.Respiration = { min: parseFloat(min.Respiration), max: parseFloat(max.Respiration) };
-//     defaultThreshold.Painscore = painscore || 5; 
-//     await defaultThreshold.save();
-//     res.json({ status: 'success', message: 'Default threshold updated successfully' });
-//   } catch (error) {
-//     console.error('Error updating default threshold:', error);
-//     res.status(500).json({ status: 'error', message: 'Internal server error' });
-//   }
-// });
 
 const threshold = {
   SBP: { min: 90, max: 140 },
@@ -4050,7 +3219,7 @@ app.post('/update-default-threshold', async (req, res) => {
   }
 });
 
-
+//แบบแก้ไขรายบุคคล
 app.post("/update-threshold", async (req, res) => {
   const { userId, min, max,painscore } = req.body;
   try {
@@ -4110,104 +3279,42 @@ app.post('/get-threshold', async (req, res) => {
   }
 });
 
-// app.post("/addpatientform", async (req, res) => {
-//   const {
-//     Symptoms,
-//     SBP,
-//     DBP,
-//     PulseRate,
-//     Temperature,
-//     DTX,
-//     Respiration,
-//     LevelSymptom,
-//     Painscore,
-//     request_detail,
-//     Recorder,
-//     user
-//   } = req.body;
+const checkThresholdMatch = (userThreshold, defaultThreshold) => {
+  const fields = ['SBP', 'DBP', 'PulseRate', 'Temperature', 'DTX', 'Respiration', 'Painscore'];
+  
+  return fields.every(field => {
+    if (field === 'Painscore') {
+      return userThreshold[field] === defaultThreshold[field];
+    } else {
+      return userThreshold[field]?.min === defaultThreshold[field]?.min &&
+             userThreshold[field]?.max === defaultThreshold[field]?.max;
+    }
+  });
+};
 
-//   try {
-//     const patientForm = new PatientForm({
-//       Symptoms,
-//       SBP: SBP.trim() !== '' ? SBP : null,
-//       DBP: DBP.trim() !== '' ? DBP : null,
-//       PulseRate: PulseRate.trim() !== '' ? PulseRate : null,
-//       Temperature: Temperature.trim() !== '' ? Temperature : null,
-//       DTX: DTX.trim() !== '' ? DTX : null,
-//       Respiration: Respiration.trim() !== '' ? Respiration : null,
-//       LevelSymptom,
-//       Painscore,
-//       request_detail,
-//       Recorder,
-//       user,
-//     });
+app.get('/alluserwiththreshold', async (req, res) => {
+  try {
+    const defaultThreshold = await DefaultThreshold.findOne();
+    if (!defaultThreshold) {
+      return res.status(404).json({ status: 'error', message: 'DefaultThreshold not found' });
+    }
 
-//     await patientForm.save();
+    const users = await UserThreshold.find();
 
-//     const userThreshold = await UserThreshold.findOne({ user });
-//     const thresholds = userThreshold || threshold;
+    const usersWithMatchingThreshold = users.map(user => {
+      const isMatch = checkThresholdMatch(user, defaultThreshold); 
+      return {
+        ...user.toObject(),
+        thresholdMatch: isMatch, 
+      };
+    });
 
-//     let alerts = [];
-
-//     if (SBP && SBP.trim() !== '') {
-//       const SBPValue = parseFloat(SBP);
-//       if (SBPValue < thresholds.SBP.min || SBPValue > thresholds.SBP.max) {
-//         alerts.push("ความดันตัวบน");
-//       }
-//     }
-
-//     if (DBP && DBP.trim() !== '') {
-//       const DBPValue = parseFloat(DBP);
-//       if (DBPValue < thresholds.DBP.min || DBPValue > thresholds.DBP.max) {
-//         alerts.push("ความดันตัวล่าง");
-//       }
-//     }
-
-//     if (PulseRate && PulseRate.trim() !== '') {
-//       const PulseRateValue = parseFloat(PulseRate);
-//       if (PulseRateValue < thresholds.PulseRate.min || PulseRateValue > thresholds.PulseRate.max) {
-//         alerts.push("ชีพจร");
-//       }
-//     }
-
-//     if (Temperature && Temperature.trim() !== '') {
-//       const TemperatureValue = parseFloat(Temperature);
-//       if (TemperatureValue < thresholds.Temperature.min || TemperatureValue > thresholds.Temperature.max) {
-//         alerts.push("อุณหภูมิ");
-//       }
-//     }
-
-//     if (DTX && DTX.trim() !== '') {
-//       const DTXValue = parseFloat(DTX);
-//       if (DTXValue < thresholds.DTX.min || DTXValue > thresholds.DTX.max) {
-//         alerts.push("ระดับน้ำตาลในเลือด");
-//       }
-//     }
-
-//     if (Respiration && Respiration.trim() !== '') {
-//       const RespirationValue = parseFloat(Respiration);
-//       if (RespirationValue < thresholds.Respiration.min || RespirationValue > thresholds.Respiration.max) {
-//         alerts.push("การหายใจ");
-//       }
-//     }
-//     if (Painscore > 5) {
-//       alerts.push("Painscore สูงกว่า 5"); // การแจ้งเตือนหาก Painscore มากกว่า 5
-//     }
-
-//     if (alerts.length > 0) {
-//       const alertMessage = `ค่า ${alerts.join(', ')} มีความผิดปกติ`;
-//       await Alert.create({ patientFormId: patientForm._id, alertMessage, user });
-    
-//       io.emit('newAlert', { alertMessage, patientFormId: patientForm._id });
-
-//     }
-
-//     res.send({ status: "ok", patientForm });
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).send({ status: "error", message: error.message });
-//   }
-// });
+    res.json({ status: 'success', data: usersWithMatchingThreshold });
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
 
 
 app.get("/getpatientform/:id", async (req, res) => {
@@ -4227,273 +3334,6 @@ app.get("/getpatientform/:id", async (req, res) => {
 });
 
 
-// app.put("/updatepatientform/:id", async (req, res) => {
-//   const {
-//     Symptoms,
-//     SBP,
-//     DBP,
-//     PulseRate,
-//     Temperature,
-//     DTX,
-//     Respiration,
-//     LevelSymptom,
-//     Painscore,
-//     request_detail,
-//     Recorder,
-//     user
-//   } = req.body;
-
-//   const { id } = req.params;
-
-//   try {
-//     const updatedFields = {
-//       Symptoms,
-//       SBP: SBP !== '' ? SBP : null,
-//       DBP: DBP !== '' ? DBP : null,
-//       PulseRate: PulseRate !== '' ? PulseRate : null,
-//       Temperature: Temperature !== '' ? Temperature : null,
-//       DTX: DTX !== '' ? DTX : null,
-//       Respiration: Respiration !== '' ? Respiration : null,
-//       LevelSymptom,
-//       Painscore,
-//       request_detail,
-//       Recorder,
-//       user,
-//     };
-
-//     Object.keys(updatedFields).forEach(key => updatedFields[key] === undefined && delete updatedFields[key]);
-
-//     const patientForm = await PatientForm.findByIdAndUpdate(id, updatedFields, { new: true });
-
-//     if (!patientForm) {
-//       return res.status(404).send({ status: "error", message: "Patient form not found" });
-//     }
-
-//     const userThreshold = await UserThreshold.findOne({ user });
-//     const thresholds = userThreshold || threshold;
-
-//     let alerts = [];
-
-//     const isString = value => typeof value === 'string';
-
-//     if (SBP && isString(SBP) && SBP.trim() !== '') {
-//       const SBPValue = parseFloat(SBP);
-//       if (SBPValue < thresholds.SBP.min || SBPValue > thresholds.SBP.max) {
-//         alerts.push("ความดันตัวบน");
-//       }
-//     }
-
-//     if (DBP && isString(DBP) && DBP.trim() !== '') {
-//       const DBPValue = parseFloat(DBP);
-//       if (DBPValue < thresholds.DBP.min || DBPValue > thresholds.DBP.max) {
-//         alerts.push("ความดันตัวล่าง");
-//       }
-//     }
-
-//     if (PulseRate && isString(PulseRate) && PulseRate.trim() !== '') {
-//       const PulseRateValue = parseFloat(PulseRate);
-//       if (PulseRateValue < thresholds.PulseRate.min || PulseRateValue > thresholds.PulseRate.max) {
-//         alerts.push("ชีพจร");
-//       }
-//     }
-
-//     if (Temperature && isString(Temperature) && Temperature.trim() !== '') {
-//       const TemperatureValue = parseFloat(Temperature);
-//       if (TemperatureValue < thresholds.Temperature.min || TemperatureValue > thresholds.Temperature.max) {
-//         alerts.push("อุณหภูมิ");
-//       }
-//     }
-
-//     if (DTX && isString(DTX) && DTX.trim() !== '') {
-//       const DTXValue = parseFloat(DTX);
-//       if (DTXValue < thresholds.DTX.min || DTXValue > thresholds.DTX.max) {
-//         alerts.push("ระดับน้ำตาลในเลือด");
-//       }
-//     }
-
-//     if (Respiration && isString(Respiration) && Respiration.trim() !== '') {
-//       const RespirationValue = parseFloat(Respiration);
-//       if (RespirationValue < thresholds.Respiration.min || RespirationValue > thresholds.Respiration.max) {
-//         alerts.push("การหายใจ");
-//       }
-//     }
-
-//     if (alerts.length > 0) {
-//       const alertMessage = `มีการแก้ไขการบันทึก แล้วค่า ${alerts.join(', ')} มีความผิดปกติ`;
-//       await Alert.create({ patientFormId: patientForm._id, alertMessage, user });
-      
-//       io.emit('newAlert', { alertMessage, patientFormId: patientForm._id });
-
-//     }
-
-//     res.send({ status: "ok", patientForm });
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).send({ status: "error", message: error.message });
-//   }
-// });
-
-
-
-// const checkAbnormalities = async (data, thresholds, patientFormId, userId, isUpdate = false) => {
-//   let alerts = [];
-
-//   const keyToLabel = {
-//     SBP: "ความดันตัวบน",
-//     DBP: "ความดันตัวล่าง",
-//     PulseRate: "อัตราชีพจร",
-//     Temperature: "อุณหภูมิ",
-//     DTX: "น้ำตาลในเลือด",
-//     Respiration: "อัตราการหายใจ",
-//     Painscore: "ระดับความเจ็บปวด"
-//   };
-//   const checkThreshold = (value, key) => {
-//     if (value !== null && value !== undefined) {
-//       const strValue = typeof value === 'string' ? value.trim() : value.toString();
-//       const numValue = parseFloat(strValue);
-//       if (numValue < thresholds[key].min || numValue > thresholds[key].max) {
-//         alerts.push(keyToLabel[key] || key);
-//       }
-//     }
-//   };
-
-//   checkThreshold(data.SBP, 'SBP');
-//   checkThreshold(data.DBP, 'DBP');
-//   checkThreshold(data.PulseRate, 'PulseRate');
-//   checkThreshold(data.Temperature, 'Temperature');
-//   checkThreshold(data.DTX, 'DTX');
-//   checkThreshold(data.Respiration, 'Respiration');
-
-//   if (data.Painscore > 5) alerts.push(keyToLabel["Painscore"] || "Painscore สูงกว่า 5");
-
-//   if (alerts.length === 0) {
-//     await Alert.deleteMany({ patientFormId, user: userId });
-//     io.emit('deletedAlert', { patientFormId });
-//     return;
-//   }
-
-//   if (alerts.length > 0) {
-//     const prefix = isUpdate ? "มีการแก้ไขการบันทึก แล้วค่า" : "ค่า";
-//     const alertMessage = `${prefix} ${alerts.join(', ')} มีความผิดปกติ`;
-
-//     // ตรวจสอบว่ามีการแจ้งเตือนเดิมอยู่แล้วหรือไม่
-//     const existingAlert = await Alert.findOne({ patientFormId, user: userId });
-//     let alert;
-//     if (existingAlert) {
-//       // อัปเดตการแจ้งเตือนเดิม
-//       existingAlert.alertMessage = alertMessage;
-//       alert = await existingAlert.save();
-//     } else {
-//       // สร้างการแจ้งเตือนใหม่หากไม่มี
-//       alert = await Alert.create({ patientFormId, alertMessage, user: userId });
-//     }
-
-//     // ดึงข้อมูล user เพื่อให้ได้ name และ surname
-//     const user = await User.findById(userId).select('name surname');
-//     if (!user) throw new Error('User not found');
-//     const patientForm = await PatientForm.findById(patientFormId).select("createdAt updatedAt");
-//     if (!patientForm) throw new Error("Patient form not found");
-
-//     // ส่งการแจ้งเตือนผ่าน WebSocket
-//     io.emit('newAlert', {
-//       _id: alert._id, 
-//       alertMessage,
-//       patientFormId,
-//       user: { id: userId, name: user.name, surname: user.surname },
-//       createdAt: alert.createdAt, // ใช้ createdAt ของ alert เอง
-//       patientFormCreatedAt: patientForm?.createdAt || null, 
-//       patientFormUpdatedAt : patientForm?.updatedAt || null,
-//       updatedAt: alert.updatedAt,
-//       viewedBy: alert.viewedBy || [],
-//     });
-//   }
-// };
-//ไม่มีประเภท
-// const checkAbnormalities = async (data, thresholds, patientFormId, userId, isUpdate = false) => {
-//   let alerts = [];
-
-//   const keyToLabel = {
-//     SBP: "ความดันตัวบน",
-//     DBP: "ความดันตัวล่าง",
-//     PulseRate: "อัตราชีพจร",
-//     Temperature: "อุณหภูมิ",
-//     DTX: "น้ำตาลในเลือด",
-//     Respiration: "อัตราการหายใจ",
-//     Painscore: "ระดับความเจ็บปวด"
-//   };
-
-//   const checkThreshold = (value, key) => {
-//     if (value !== null && value !== undefined) {
-//       const strValue = typeof value === 'string' ? value.trim() : value.toString();
-//       const numValue = parseFloat(strValue);
-//       if (numValue < thresholds[key].min || numValue > thresholds[key].max) {
-//         alerts.push(keyToLabel[key] || key);
-//       }
-//     }
-//   };
-
-//   checkThreshold(data.SBP, 'SBP');
-//   checkThreshold(data.DBP, 'DBP');
-//   checkThreshold(data.PulseRate, 'PulseRate');
-//   checkThreshold(data.Temperature, 'Temperature');
-//   checkThreshold(data.DTX, 'DTX');
-//   checkThreshold(data.Respiration, 'Respiration');
-
-//   if (data.Painscore > 5) alerts.push(keyToLabel["Painscore"] || "Painscore สูงกว่า 5");
-
-//   const user = await User.findById(userId).select('name surname');
-//   if (!user) throw new Error('User not found');
-
-//   const patientForm = await PatientForm.findById(patientFormId).select("createdAt updatedAt");
-//   if (!patientForm) throw new Error("Patient form not found");
-
-  
-//   if (alerts.length === 0) {
-//     // ✅ กรณีค่าปกติ -> แจ้งเตือนว่ามีการเพิ่มบันทึกอาการ
-//     const alertMessage = `เพิ่มการบันทึกอาการ (ค่าปกติ)`;
-
-//     const alert = await Alert.create({ patientFormId, alertMessage, user: userId });
-
-//     io.emit('newAlert', {
-//       _id: alert._id,
-//       alertMessage,
-//       patientFormId,
-//       user: { id: userId, name: user.name, surname: user.surname },
-//       createdAt: alert.createdAt,
-//       patientFormCreatedAt: patientForm?.createdAt || null,
-//       patientFormUpdatedAt: patientForm?.updatedAt || null,
-//       updatedAt: alert.updatedAt,
-//       viewedBy: alert.viewedBy || [],
-//     });
-
-//     return;
-//   }
-
-//   // ✅ กรณีค่าผิดปกติ -> แจ้งเตือนว่ามีความผิดปกติ
-//   const prefix = isUpdate ? "มีการแก้ไขการบันทึก แล้วค่า" : "ค่า";
-//   const alertMessage = `${prefix} ${alerts.join(', ')} มีความผิดปกติ`;
-
-//   const existingAlert = await Alert.findOne({ patientFormId, user: userId });
-//   let alert;
-//   if (existingAlert) {
-//     existingAlert.alertMessage = alertMessage;
-//     alert = await existingAlert.save();
-//   } else {
-//     alert = await Alert.create({ patientFormId, alertMessage, user: userId });
-//   }
-
-//   io.emit('newAlert', {
-//     _id: alert._id,
-//     alertMessage,
-//     patientFormId,
-//     user: { id: userId, name: user.name, surname: user.surname },
-//     createdAt: alert.createdAt,
-//     patientFormCreatedAt: patientForm?.createdAt || null,
-//     patientFormUpdatedAt: patientForm?.updatedAt || null,
-//     updatedAt: alert.updatedAt,
-//     viewedBy: alert.viewedBy || [],
-//   });
-// };
 const checkAbnormalities = async (data, thresholds, patientFormId, userId, isUpdate = false) => {
   let alerts = [];
 
@@ -4609,99 +3449,6 @@ app.post("/addpatientform", async (req, res) => {
   }
 });
 
-// app.put("/updatepatientform/:id", async (req, res) => {
-//   const {
-//     Symptoms,
-//     SBP,
-//     DBP,
-//     PulseRate,
-//     Temperature,
-//     DTX,
-//     Respiration,
-//     LevelSymptom,
-//     Painscore,
-//     request_detail,
-//     Recorder,
-//     user
-//   } = req.body;
-
-//   const { id } = req.params;
-
-//   try {
-//     const updatedFields = {
-//       Symptoms,
-//       SBP: SBP !== '' ? SBP : null,
-//       DBP: DBP !== '' ? DBP : null,
-//       PulseRate: PulseRate !== '' ? PulseRate : null,
-//       Temperature: Temperature !== '' ? Temperature : null,
-//       DTX: DTX !== '' ? DTX : null,
-//       Respiration: Respiration !== '' ? Respiration : null,
-//       LevelSymptom,
-//       Painscore,
-//       request_detail,
-//       Recorder,
-//       user,
-//       updatedAt: new Date(),
-//     };
-
-//     Object.keys(updatedFields).forEach(key => updatedFields[key] === undefined && delete updatedFields[key]);
-
-//     const patientForm = await PatientForm.findByIdAndUpdate(id, updatedFields, { new: true });
-
-//     if (!patientForm) {
-//       return res.status(404).send({ status: "error", message: "Patient form not found" });
-//     }
-
-//     await Alert.updateMany(
-//       { patientFormId: id }, // เงื่อนไขเพื่อค้นหา Alert ที่เกี่ยวข้อง
-//       { $set: { viewedBy: [],
-//         updatedAt: new Date() 
-//       } } // รีเซ็ตฟิลด์ viewedBy
-//     );
-
-//     const userThreshold = await UserThreshold.findOne({ user });
-//     const thresholds = userThreshold || threshold;
-
-//     await checkAbnormalities(req.body, thresholds, patientForm._id, user, true);
-
-//     res.send({ status: "ok", patientForm });
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).send({ status: "error", message: error.message });
-//   }
-// });
-
-
-// app.get("/alerts", async (req, res) => {
-//   try {
-//     // ดึงข้อมูล alerts และเชื่อมโยงข้อมูล user และ patientForm
-//     const alerts = await Alert.find()
-//       .sort({ updatedAt: -1 })
-//       .populate("MPersonnel", "name surname") 
-//       .populate({
-//         path: 'user',
-//         select: 'name surname',
-//         match: { deletedAt: null } // ดึงเฉพาะ user ที่ไม่มี deletedAt
-//       })
-//       .populate({
-//         path: 'patientFormId', // เชื่อมโยงกับ patientForm
-//         select: 'createdAt updatedAt' // ดึงเฉพาะฟิลด์ createdAt จาก patientForm
-//       });
-
-//       const updatedAlerts = alerts.map(alert => ({
-//         ...alert.toObject(),
-//         patientFormId: alert.patientFormId?._id || alert.patientFormId || null,
-//         patientFormCreatedAt: alert.patientFormId?.createdAt || null, 
-//         patientFormUpdatedAt: alert.patientFormId?.updatedAt || null, 
-      
-//       }));
-  
-//       res.json({ alerts: updatedAlerts });
-//   } catch (error) {
-//     console.error("Error fetching alerts:", error);
-//     res.status(500).send({ status: "error", message: error.message });
-//   }
-// });
 
 app.put("/updatepatientform/:id", async (req, res) => {
   const {
@@ -4824,6 +3571,7 @@ app.get("/alerts", async (req, res) => {
           }
         : null; // กำหนดเป็น null ถ้าไม่มีค่า MPersonnel
 
+        
       return {
         _id: alert._id,
         alertMessage: alert.alertMessage,
@@ -5027,59 +3775,7 @@ app.get("/getPatientData/:userId/:formId", async (req, res) => {
   }
 });
 
-//แบบไม่มีชื่อผู้ประเมิน
-// app.post("/addassessment", async (req, res) => {
-//   const { suggestion, detail, status_name, PPS, MPersonnel, PatientForm: patientFormId } = req.body;
-
-//   try {
-//     const patientForm = await PatientForm.findById(patientFormId).populate('user').exec();
-
-//     if (!patientForm) {
-//       return res.status(404).send({ status: "error", message: "PatientForm not found." });
-//     }
-//     const assessment = await Assessment.create({
-//       suggestion, detail, status_name, PPS, MPersonnel, PatientForm: patientForm._id,
-//     });
-    
-//     const createdAtAss = assessment.createdAt;
-//     let alert;
-//     if (status_name === 'เคสฉุกเฉิน') {
-//       const alertMessage = `เป็นเคสฉุกเฉิน`;
-
-//       const { _id: userId, name, surname } = patientForm.user;
-      
-//       alert = await Alert.create({
-//         patientFormId: patientForm._id,
-//         alertMessage,
-//         user: patientForm.user._id,
-//         createdAtAss: new Date() 
-//       });
-      
-//       io.emit('newAlert', { 
-//         _id: alert._id, 
-//         alertMessage, 
-//         patientFormId: patientForm._id,
-//         createdAt: alert.createdAt, // ใช้ createdAt ของ alert เอง
-//         patientFormCreatedAt: patientForm?.createdAt || null,
-//         patientFormUpdatedAt : patientForm?.updatedAt || null,
-//         createdAtAss ,
-//         updatedAt: alert.updatedAt,
-//         user: { id: userId, name, surname } ,
-//         viewedBy:[]});
-//     }
-
-   
-//     res.send({ status: "ok" });
-//   } catch (error) {
-//     console.error("Error:", error);
-//     if (error.code === 11000 && error.keyPattern.PatientForm) {
-//       res.status(400).send({ status: "error", message: "PatientForm already has an assessment." });
-//     } else {
-//       res.status(500).send({ status: "error", message: "An error occurred while adding assessment." });
-//     }
-//   }
-// });
-
+//เพิ่มการประเมินอาการ
 app.post("/addassessment", async (req, res) => { 
   const { suggestion, detail, status_name, PPS, MPersonnel, PatientForm: patientFormId } = req.body;
 
@@ -5158,89 +3854,6 @@ app.post("/addassessment", async (req, res) => {
   }
 });
 
-// app.put("/updateassessment/:id", async (req, res) => {
-//   const { id } = req.params;
-//   const { suggestion, detail, status_name, PPS, MPersonnel } = req.body;
-
-//   try {
-//     const assessment = await Assessment.findById(id).populate('PatientForm').exec();
-
-//     if (!assessment) {
-//       return res.status(404).send({ status: "error", message: "Assessment not found." });
-//     }
-
-//     const previousStatus = assessment.status_name;
-
-//     // บันทึกการแก้ไขลงใน history
-//     assessment.history.push({
-//       suggestion: assessment.suggestion,
-//       detail: assessment.detail,
-//       status_name: previousStatus,
-//       PPS: assessment.PPS,
-//       updatedBy: MPersonnel,
-//     });
-
-//     // อัปเดตข้อมูลใหม่
-//     assessment.suggestion = suggestion;
-//     assessment.detail = detail;
-//     assessment.status_name = status_name;
-//     assessment.PPS = PPS;
-
-//     // ตรวจสอบว่ามีการเปลี่ยนแปลงสถานะจาก 'เคสฉุกเฉิน'
-//     if (previousStatus === 'เคสฉุกเฉิน' && status_name !== 'เคสฉุกเฉิน') {
-//       console.log(`Deleting alert for patientFormId: ${assessment.PatientForm._id} with message: 'เป็นเคสฉุกเฉิน'`);
-      
-//       // ลบ alert ที่เกี่ยวข้อง
-//       const deleteResult = await Alert.deleteOne({
-//         patientFormId: assessment.PatientForm._id,
-//         alertMessage: 'เป็นเคสฉุกเฉิน'
-//       });
-
-//       console.log(`Delete result: ${deleteResult}`);
-
-//       io.emit('deletedAlert', { patientFormId: assessment.PatientForm._id, alertMessage: 'เป็นเคสฉุกเฉิน' });
-
-//     }
-//     let alert;
-
-//     // ถ้าเป็นเคสฉุกเฉินให้สร้าง alert ใหม่
-//     if (status_name === 'เคสฉุกเฉิน' && previousStatus !== 'เคสฉุกเฉิน') {
-//       const alertMessage = `เป็นเคสฉุกเฉิน`;
-//       const patientFormCreatedAt = assessment.PatientForm.createdAt;
-//       const patientFormUpdatedAt = assessment.PatientForm.updatedAt;
-//       const user = await User.findById(assessment.PatientForm.user._id).select('name surname');
-//       if (!user) throw new Error('User not found');
-//       console.log(`Creating alert for patientFormId: ${assessment.PatientForm._id} with message: 'เป็นเคสฉุกเฉิน'`);
-//       alert = await Alert.create({
-//         patientFormId: assessment.PatientForm._id,
-//         alertMessage,
-//         user: assessment.PatientForm.user._id,
-//         createdAtAss: new Date() 
-//       });
-
-//       io.emit('newAlert', { 
-//         _id: alert._id, 
-//         alertMessage, 
-//         patientFormId: assessment.PatientForm._id ,
-//         viewedBy:[], 
-//         user: { id: assessment.PatientForm.user._id, name: user.name, surname: user.surname },
-//         createdAtAss: alert.createdAt,
-//         createdAt: alert.createdAt, // ใช้ createdAt ของ alert เอง
-//         patientFormCreatedAt: patientFormCreatedAt || null, 
-//         patientFormUpdatedAt : patientFormUpdatedAt || null,
-//         updatedAt: alert.updatedAt,
-//       });
-
-//     }
-
-//     await assessment.save();
-
-//     res.send({ status: "ok", message: "Assessment updated successfully." });
-//   } catch (error) {
-//     console.error("Error:", error);
-//     res.status(500).send({ status: "error", message: "An error occurred while updating assessment." });
-//   }
-// });
 
 app.put("/updateassessment/:id", async (req, res) => {
   const { id } = req.params;
@@ -5501,7 +4114,6 @@ app.get("/searchuser", async (req, res) => {
 //     res.status(500).json({ status: "Error", data: "Internal Server Error" });
 //   }
 // });
-
 app.delete("/deleteUser/:id", async (req, res) => {
   const UserId = req.params.id;
   const { adminPassword, adminId } = req.body; // adminId ต้องถูกส่งมาจากฝั่ง frontend
@@ -5531,7 +4143,7 @@ app.delete("/deleteUser/:id", async (req, res) => {
       {
         $set: {
           deletedAt: new Date(),
-          deleteExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 วัน
+          deleteExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 
         },
       },
       { new: true }
@@ -5539,7 +4151,12 @@ app.delete("/deleteUser/:id", async (req, res) => {
 
 
     if (result) {
-      res.json({ status: "OK", data: "ลบข้อมูลผู้ป่วยสำเร็จ" });
+
+      await Room.updateMany(
+        { roomId: UserId },
+        { $set: { deletedAt: new Date() } } 
+      );
+      res.json({ status: "OK", data: "ลบข้อมูลผู้ป่วยสำเร็จ และอัปเดตข้อมูลในห้อง" });
     } else {
       res.status(404).json({
         status: "Not Found",
@@ -5564,12 +4181,19 @@ app.post("/recoveruser/:id", async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: "ไม่พบผู้ใช้" });
     }
+
+    const updateRooms = await Room.updateMany(
+      { roomId: userId }, 
+      { $set: { deletedAt: null } } 
+    );
+
     res.json({ success: true, message: "กู้คืนข้อมูลสำเร็จ", data: user });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "เกิดข้อผิดพลาด" });
   }
 });
+
 
 //ดึงคู่ข้อมูลผู้ป่วย
 app.get("/getuser/:id", async (req, res) => {
@@ -5673,122 +4297,6 @@ app.post("/updatenameadmin/:id", async (req, res) => {
 
 
 //----------------------------------------------
-
-// app.post("/updatemedicalinformation/:id", upload1, async (req, res) => {
-//   const {
-//     HN,
-//     AN,
-//     Date_Admit,
-//     Date_DC,
-//     Diagnosis,
-//     Chief_complaint,
-//     Present_illness,
-//     Phychosocial_assessment,
-//     Management_plan,
-//     selectedPersonnel,
-//   } = req.body;
-//   const { id } = req.params;
-
-//   try {
-//     let filePresent = "";
-//     let fileManage = "";
-//     let filePhychosocial = "";
-
-//     const bucket = admin.storage().bucket();
-
-//     // Upload fileP to Firebase Storage (if exists)
-//     if (req.files["fileP"] && req.files["fileP"][0]) {
-//       const file = req.files["fileP"][0];
-//       const fileName = Date.now() + '-' + file.originalname;
-//       const fileRef = bucket.file(fileName);
-//       const fileStream = fileRef.createWriteStream({
-//         metadata: { contentType: file.mimetype },
-//       });
-
-//       fileStream.end(file.buffer);
-//       await new Promise((resolve, reject) => {
-//         fileStream.on('finish', () => {
-//           filePresent = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
-//           resolve();
-//         });
-//         fileStream.on('error', reject);
-//       });
-//     }
-
-//     // Upload fileM to Firebase Storage (if exists)
-//     if (req.files["fileM"] && req.files["fileM"][0]) {
-//       const file = req.files["fileM"][0];
-//       const fileName = Date.now() + '-' + file.originalname;
-//       const fileRef = bucket.file(fileName);
-//       const fileStream = fileRef.createWriteStream({
-//         metadata: { contentType: file.mimetype },
-//       });
-
-//       fileStream.end(file.buffer);
-//       await new Promise((resolve, reject) => {
-//         fileStream.on('finish', () => {
-//           fileManage = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
-//           resolve();
-//         });
-//         fileStream.on('error', reject);
-//       });
-//     }
-
-//     // Upload filePhy to Firebase Storage (if exists)
-//     if (req.files["filePhy"] && req.files["filePhy"][0]) {
-//       const file = req.files["filePhy"][0];
-//       const fileName = Date.now() + '-' + file.originalname;
-//       const fileRef = bucket.file(fileName);
-//       const fileStream = fileRef.createWriteStream({
-//         metadata: { contentType: file.mimetype },
-//       });
-
-//       fileStream.end(file.buffer);
-//       await new Promise((resolve, reject) => {
-//         fileStream.on('finish', () => {
-//           filePhychosocial = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
-//           resolve();
-//         });
-//         fileStream.on('error', reject);
-//       });
-//     }
-
-//     const oldMedicalInfo = await MedicalInformation.findById(id);
-//     if (!oldMedicalInfo) {
-//       return res.status(404).json({ status: "Medical information not found" });
-//     }
-
-//     // ตรวจสอบว่ามีการอัปโหลดไฟล์ไม่ ถ้าไม่มี ใช้ไฟล์เดิมจากฐานข้อมูล
-//     const updatedMedicalInformation = await MedicalInformation.findByIdAndUpdate(
-//       id,
-//       {
-//         HN,
-//         AN,
-//         Date_Admit,
-//         Date_DC,
-//         Diagnosis,
-//         Chief_complaint,
-//         Present_illness,
-//         Phychosocial_assessment,
-//         Management_plan,
-//         fileP: filePresent || oldMedicalInfo.fileP,
-//         fileM: fileManage || oldMedicalInfo.fileM,
-//         filePhy: filePhychosocial || oldMedicalInfo.filePhy,
-//         selectedPersonnel,
-//       },
-//       { new: true }
-//     );
-
-//     if (!updatedMedicalInformation) {
-//       return res.status(404).json({ status: "Medical information not found" });
-//     }
-
-//     res.json({ status: "ok", updatedMedicalInfo: updatedMedicalInformation });
-//   } catch (error) {
-//     console.error("Error updating medical information:", error);
-//     res.status(500).json({ status: "error", message: "Error updating medical information" });
-//   }
-// });
 app.post("/updatemedicalinformation/:id", upload1, async (req, res) => {
   const {
     HN,
@@ -6217,637 +4725,143 @@ app.get("/searchuserchat", async (req, res) => {
 });
 
 
-//เริ่มต้นแก้ใหม่ 191267
-io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
+//ล่าสุด 070368
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
 
-  // เข้าห้องแชท
-  socket.on('joinRoom', (roomId) => {
+  socket.on("joinRoom", (roomId) => {
     socket.join(roomId);
     console.log(`User joined room: ${roomId}`);
   });
 
-   
-    // อัปเดตข้อความเมื่อมีการอ่านข้อความ
-    socket.on("markAsRead", async ({ roomId, messageId, userId }) => {
-      try {
-        // ตรวจสอบ userId ว่าเป็น ObjectId ที่ถูกต้อง
-        if (!mongoose.Types.ObjectId.isValid(userId)) {
-          console.error(`Invalid userId: ${userId}`);
-          return;
-        }
-        const chatMessage = await Chat.findById(messageId);
-        if (chatMessage) {
-          const isAlreadyRead = chatMessage.readBy.some(
-            (readerId) => readerId.toString() === userId
-          );
-          if (!isAlreadyRead && chatMessage.sender.toString() !== userId) {
-            await Chat.findByIdAndUpdate(
-              messageId,
-              { $addToSet: { readBy: userId } }, // ป้องกันค่าซ้ำใน readBy
-              { new: true } // คืนค่าที่อัปเดตกลับมา
-            );
-         const chats = await Chat.find({
-          roomId,
-          sender: { $ne: userId },
-          readBy: { $nin: [userId] },
-        });
-            // ส่งข้อมูลอัปเดตให้ทุกคนในห้อง
-            io.to(roomId).emit("readByUpdated", {
-              messageId,
-              readBy: [...chatMessage.readBy, userId], // รวม userId ใหม่
-              unreadCount: chats.length,
-            });
-            console.log(`Message ${messageId} marked as read by ${userId}`);
-
-            const [updatedUsers, updatedMPersonnel] = await Promise.all([
-              User.find({ deletedAt: null }, "name surname username").lean(),
-              MPersonnel.find({ deletedAt: null }, "name surname username").lean(),
-            ]);
-            
-            const allParticipants = [...updatedUsers, ...updatedMPersonnel]; 
-            
-        
-            // ดึงข้อมูลห้องทั้งหมดที่ผู้ใช้และ MPersonnel เป็นสมาชิก
-            const participantIds = [...updatedUsers, ...updatedMPersonnel].map(p => p._id);
-
-            const totalrooms = await Room.find({ "participants.id": { $in: participantIds } }).lean();
-        
-            // คำนวณ unread count สำหรับแต่ละผู้ใช้ในห้องนี้
-            const usersWithUnreadCounts = await Promise.allSettled(
-              allParticipants.map(async (participant) => {
-                // หาห้องที่ผู้ใช้อยู่
-                const userRooms = totalrooms.filter((room) =>
-                  room.participants.some((p) => String(p.id) === String(participant._id))
-                );
-        
-                if (userRooms.length === 0) { return null;}
-        
-                let unreadCount = {};
-        
-                // คำนวณ unread count สำหรับแต่ละห้องที่ผู้ใช้เป็นสมาชิก
-                for (const room of userRooms) {
-                  const excludedUsers = await User.find({ deletedAt: { $ne: null } }).lean();
-                  const excludedUserIds = excludedUsers.map((user) => String(user._id));
-            
-                  // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
-                  if (excludedUserIds.includes(String(room.roomId))) {
-                    continue;
-                  }
-
-                  const roomUnreadCount = await Chat.countDocuments({
-                    roomId: room.roomId,
-                    readBy: { $ne: participant._id }, // ตรวจสอบว่าแชทที่ยังไม่ได้อ่าน
-                  });
-        
-                  unreadCount[room.roomId] = roomUnreadCount;
-                }
-        
-                // คำนวณ total unread count สำหรับผู้ใช้
-                const totalUnreadCount = Object.values(unreadCount).reduce(
-                  (acc, count) => acc + count,
-                  0
-                );
-        
-                console.log(`📦 Total Unread Count for ${participant._id}:`, totalUnreadCount);
-        
-                return {
-                  userId: participant._id,
-                  unreadCount,
-                  totalUnreadCount,
-                };
-              })
-            );
-        
-            // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
-            const totalfilteredUsers = usersWithUnreadCounts.filter((user) => user !== null);
-            console.log('รวม:', totalfilteredUsers);
-            io.emit("TotalUnreadCounts", totalfilteredUsers);
-          }
-        }
-       
-      } catch (error) {
-        console.error("Error updating readBy:", error);
+  socket.on("markAsRead", async ({ roomId, messageId, userId }) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        console.error(`Invalid userId: ${userId}`);
+        return;
       }
-    });
-  
-  socket.on('disconnect', () => {
-    console.log('A user disconnected:', socket.id);
+
+      const chatMessage = await Chat.findById(messageId);
+      if (chatMessage) {
+        const isAlreadyRead = chatMessage.readBy.some(
+          (readerId) => readerId.toString() === userId
+        );
+        if (!isAlreadyRead && chatMessage.sender.toString() !== userId) {
+          await Chat.findByIdAndUpdate(
+            messageId,
+            { $addToSet: { readBy: userId } },
+            { new: true }
+          );
+
+          // คำนวณ unreadCount สำหรับห้องทั้งหมดในครั้งเดียว
+          const unreadChats = await Chat.aggregate([
+            {
+              $lookup: {
+                from: "rooms", // ชื่อ collection ของ Room
+                localField: "roomId",
+                foreignField: "roomId",
+                as: "roomInfo",
+              },
+            },
+            {
+              $match: {
+                "roomInfo.deletedAt": { $exists: false }, 
+                roomId,
+                sender: { $ne: userId },
+                readBy: { $nin: [userId] },
+              },
+            },
+            {
+              $group: {
+                _id: "$roomId",
+                count: { $sum: 1 },
+              },
+            },
+          ]);
+
+          io.to(roomId).emit("readByUpdated", {
+            messageId,
+            readBy: [...chatMessage.readBy, userId],
+            unreadCount: unreadChats.length,
+          });
+
+          console.log(`Message ${messageId} marked as read by ${userId}`);
+
+          // ดึงข้อมูลผู้ใช้และคำนวณ unread counts โดยใช้ aggregate
+          const allParticipants = await User.aggregate([
+            { $match: { deletedAt: null } },
+            { $project: { name: 1, surname: 1, username: 1 } },
+          ]);
+
+          const allMPersonnel = await MPersonnel.aggregate([
+            { $match: { deletedAt: null } },
+            { $project: { name: 1, surname: 1, username: 1 } },
+          ]);
+
+          const totalParticipants = [...allParticipants, ...allMPersonnel];
+
+          // ใช้ aggregate เพื่อดึงข้อมูลห้องที่ผู้ใช้เป็นสมาชิก
+          const rooms = await Room.aggregate([
+            { $match: { "participants.id": { $in: totalParticipants.map((p) => p._id) },
+            $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
+          } },
+            { $unwind: "$participants" },
+            { $group: { _id: "$participants.id", rooms: { $push: "$roomId" } } },
+          ]);
+
+          // คำนวณ unread count ในแต่ละห้อง
+          const usersWithUnreadCounts = await Promise.all(
+            totalParticipants.map(async (participant) => {
+              const userRooms = rooms.find((room) => room._id.toString() === participant._id.toString())?.rooms || [];
+
+              if (userRooms.length === 0) return null;
+
+              let unreadCount = {};
+
+              const roomUnreadCounts = await Chat.aggregate([
+                {
+                  $match: {
+                    roomId: { $in: userRooms },
+                    readBy: { $ne: participant._id },
+                  },
+                },
+                {
+                  $group: {
+                    _id: "$roomId",
+                    count: { $sum: 1 },
+                  },
+                },
+              ]);
+
+              roomUnreadCounts.forEach((item) => {
+                unreadCount[item._id] = item.count;
+              });
+
+              const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
+
+              return { userId: participant._id, unreadCount, totalUnreadCount };
+            })
+          );
+
+          const filteredUsers = usersWithUnreadCounts.filter((user) => user !== null);
+          io.emit("TotalUnreadCounts", filteredUsers);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating readBy:", error);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("A user disconnected:", socket.id);
   });
 });
 
-
-// app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
-//   try {
-//     const { message, roomId, senderId, senderModel } = req.body;
-//     let sender;
-//     if (message.length > 10000) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Message exceeds the maximum length of 1000 characters.",
-//       });
-//     }
-
-//     if (senderModel === "User") {
-//       sender = await User.findById(senderId);
-//     } else if (senderModel === "MPersonnel") {
-//       sender = await MPersonnel.findById(senderId);
-//     }
-
-//     if (!sender) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "User not found" });
-//     }
-
-//     let newChat;
-
-//     // ตรวจสอบว่ามีการอัปโหลดไฟล์มาหรือไม่
-//     if (req.file) {
-//       const bucket = admin.storage().bucket();
-//       const fileName = req.file.originalname;
-//       const file = bucket.file(fileName);
-//       const originalFileName = Buffer.from(
-//         req.file.originalname,
-//         "latin1"
-//       ).toString("utf8");
-
-//       const fileStream = file.createWriteStream({
-//         metadata: {
-//           contentType: req.file.mimetype,
-//         },
-//       });
-
-//       fileStream.on("error", (err) => {
-//         console.error("Error uploading image:", err);
-//         return res
-//           .status(500)
-//           .json({ success: false, message: "Error uploading image" });
-//       });
-
-//       fileStream.on("finish", async () => {
-//         const [metadata] = await file.getMetadata();
-//         const fileSize = metadata.size;
-
-//         const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${
-//           bucket.name
-//         }/o/${encodeURIComponent(fileName)}?alt=media`;
-
-//         newChat = new Chat({
-//           message,
-//           image: imageUrl,
-//           imageName: originalFileName,
-//           sender: sender._id,
-//           senderModel,
-//           roomId,
-//           fileSize,
-//           readBy: [senderId],
-//         });
-
-//         await newChat.save();
-//         await newChat.populate("sender", "name surname");
-
-//         // กระจายข้อความแบบเรียลไทม์
-//         io.to(roomId).emit("receiveMessage", newChat);
-
-//         const updatedUsers = await User.find(
-//           { deletedAt: null },
-//           "name surname username"
-//         ).lean();
-
-//         const updatedMPersonnel = await MPersonnel.find(
-//           { deletedAt: null },
-//           "name surname username"
-//         ).lean();
-
-//         const rooms = await Room.find({
-//           "participants.id": { $in: updatedUsers.map((user) => user._id) },
-//         }).lean();
-
-//         const usersWithChats = await Promise.all(
-//           updatedUsers.map(async (user) => {
-//             const userRooms = rooms.filter((room) =>
-//               room.participants.some((p) => String(p.id) === String(user._id))
-//             );
-
-//             if (userRooms.length === 0) {
-//               return null;
-//             }
-
-//             let latestChat = null;
-//             let unreadCount = {};
-
-//             for (const room of userRooms) {
-//               // ดึงแชทล่าสุดในห้อง
-//               const roomLatestChat = await Chat.findOne({ roomId: room.roomId })
-//                 .sort({ createdAt: -1 })
-//                 .populate("sender", "name surname")
-//                 .lean();
-
-//               if (roomLatestChat) {
-//                 if (
-//                   !latestChat ||
-//                   new Date(roomLatestChat.createdAt) >
-//                     new Date(latestChat.createdAt)
-//                 ) {
-//                   latestChat = {
-//                     message: roomLatestChat.message,
-//                     file: roomLatestChat.image,
-//                     senderId: roomLatestChat.sender._id,
-//                     senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
-//                     createdAt: roomLatestChat.createdAt,
-//                   };
-//                 }
-//               }
-
-//               // ดึงจำนวนข้อความที่ยังไม่ได้อ่านสำหรับทุก participants ในห้องนี้
-//               for (const participant of room.participants) {
-//                 const unreadCounts = await Chat.countDocuments({
-//                   roomId: room.roomId,
-//                   readBy: { $ne: participant.id }, // ตรวจสอบว่าใครยังไม่ได้อ่าน
-//                 });
-
-//                 unreadCount[participant.id] = unreadCounts;
-//               }
-//             }
-
-//             return {
-//               _id: user._id,
-//               name: user.name,
-//               surname: user.surname,
-//               // username: user.username,
-//               latestChat,
-//               unreadCount,
-//             };
-//           })
-//         );
-//         const filteredUsers = usersWithChats.filter((user) => user !== null);
-
-//         io.emit("usersUpdated", filteredUsers);
-
-//         const allParticipants = [...updatedUsers, ...updatedMPersonnel];
-
-//         const totalrooms = await Room.find({
-//           "participants.id": {
-//             $in: allParticipants.map((participant) => participant._id),
-//           },
-//         }).lean();
-
-//         const usersWithUnreadCounts = await Promise.all(
-//           allParticipants.map(async (participant) => {
-//             const userRooms = totalrooms.filter((room) =>
-//               room.participants.some(
-//                 (p) => String(p.id) === String(participant._id)
-//               )
-//             );
-
-//             if (userRooms.length === 0) {
-//               return null; 
-//             }
-
-//             let unreadCount = {};
-
-//             for (const room of userRooms) {
-//               const excludedUsers = await User.find({
-//                 deletedAt: { $ne: null },
-//               }).lean();
-//               const excludedUserIds = excludedUsers.map((user) =>
-//                 String(user._id)
-//               );
-
-//               // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
-//               if (excludedUserIds.includes(String(room.roomId))) {
-//                 continue;
-//               }
-//               const roomUnreadCount = await Chat.countDocuments({
-//                 roomId: room.roomId,
-//                 readBy: { $ne: participant._id },
-//               });
-
-//               unreadCount[room.roomId] = roomUnreadCount;
-//             }
-
-//             const totalUnreadCount = Object.values(unreadCount).reduce(
-//               (acc, count) => acc + count,
-//               0
-//             );
-
-//            console.log(
-//               `Total Unread Count for ${participant._id}:`,
-//               totalUnreadCount
-//             );
-
-//             return {
-//               userId: participant._id,
-//               unreadCount,
-//               totalUnreadCount,
-//             };
-//           })
-//         );
-
-//         // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
-//         const totalfilteredUsers = usersWithUnreadCounts.filter(
-//           (user) => user !== null
-//         );
-//         console.log("รวม:", totalfilteredUsers);
-//         io.emit("TotalUnreadCounts", totalfilteredUsers);
-
-//         res.json({
-//           success: true,
-//           message: "Chat message with image saved",
-//           newChat,
-//           imageUrl, 
-//           imageName: originalFileName,
-//           fileSize,
-//           roomId,
-//           readBy: [senderId],
-//         });
-//       });
-
-//       fileStream.end(req.file.buffer);
-//     } else {
-//       // กรณีไม่มีไฟล์
-//       newChat = new Chat({
-//         message,
-//         sender: sender._id,
-//         senderModel,
-//         roomId,
-//         readBy: [senderId],
-//       });
-
-//       await newChat.save();
-//       await newChat.populate("sender", "name surname");
-
-//       io.to(roomId).emit("receiveMessage", newChat);
-
-//       const updatedUsers = await User.find(
-//         { deletedAt: null },
-//         "name surname username"
-//       ).lean();
-
-//       const updatedMPersonnel = await MPersonnel.find(
-//         { deletedAt: null },
-//         "name surname username"
-//       ).lean();
-
-//       const rooms = await Room.find({
-//         "participants.id": { $in: updatedUsers.map((user) => user._id) },
-//       }).lean();
-
-//       const usersWithChats = await Promise.all(
-//         updatedUsers.map(async (user) => {
-//           const userRooms = rooms.filter((room) =>
-//             room.participants.some((p) => String(p.id) === String(user._id))
-//           );
-
-//           if (userRooms.length === 0) {
-//             return null;
-//           }
-
-//           let latestChat = null;
-//           let unreadCount = {};
-
-//           for (const room of userRooms) {
-//             // ดึงแชทล่าสุดในห้อง
-//             const roomLatestChat = await Chat.findOne({ roomId: room.roomId })
-//               .sort({ createdAt: -1 })
-//               .populate("sender", "name surname")
-//               .lean();
-
-//             if (roomLatestChat) {
-//               if (
-//                 !latestChat ||
-//                 new Date(roomLatestChat.createdAt) >
-//                   new Date(latestChat.createdAt)
-//               ) {
-//                 latestChat = {
-//                   message: roomLatestChat.message,
-//                   file: roomLatestChat.image,
-//                   senderId: roomLatestChat.sender._id,
-//                   senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
-//                   createdAt: roomLatestChat.createdAt,
-//                 };
-//               }
-//             }
-
-//             // ดึงจำนวนข้อความที่ยังไม่ได้อ่านสำหรับทุก participants ในห้องนี้
-//             for (const participant of room.participants) {
-//               const unreadCounts = await Chat.countDocuments({
-//                 roomId: room.roomId,
-//                 readBy: { $ne: participant.id }, // ตรวจสอบว่าใครยังไม่ได้อ่าน
-//               });
-
-//               unreadCount[participant.id] = unreadCounts;
-//             }
-//           }
-
-//           return {
-//             _id: user._id,
-//             name: user.name,
-//             surname: user.surname,
-//             username: user.username,
-//             latestChat,
-//             unreadCount,
-//           };
-//         })
-//       );
-//       const filteredUsers = usersWithChats.filter((user) => user !== null);
-
-//       io.emit("usersUpdated", filteredUsers);
-
-//       // รวม User และ MPersonnel
-//       const allParticipants = [...updatedUsers, ...updatedMPersonnel];
-
-//       // ดึงข้อมูลห้องทั้งหมดที่ผู้ใช้และ MPersonnel เป็นสมาชิก
-//       const totalrooms = await Room.find({
-//         "participants.id": {
-//           $in: allParticipants.map((participant) => participant._id),
-//         },
-//       }).lean();
-
-//       // คำนวณ unread count สำหรับแต่ละผู้ใช้ในห้องนี้
-//       const usersWithUnreadCounts = await Promise.all(
-//         allParticipants.map(async (participant) => {
-//           // หาห้องที่ผู้ใช้อยู่
-//           const userRooms = totalrooms.filter((room) =>
-//             room.participants.some(
-//               (p) => String(p.id) === String(participant._id)
-//             )
-//           );
-
-//           if (userRooms.length === 0) {
-//             return null; // ถ้าผู้ใช้ไม่ได้อยู่ในห้องใดๆ ให้ข้ามไป
-//           }
-
-//           let unreadCount = {};
-
-//           // คำนวณ unread count สำหรับแต่ละห้องที่ผู้ใช้เป็นสมาชิก
-//           for (const room of userRooms) {
-//             const excludedUsers = await User.find({
-//               deletedAt: { $ne: null },
-//             }).lean();
-//             const excludedUserIds = excludedUsers.map((user) =>
-//               String(user._id)
-//             );
-
-//             // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
-//             if (excludedUserIds.includes(String(room.roomId))) {
-//               continue;
-//             }
-
-//             const roomUnreadCount = await Chat.countDocuments({
-//               roomId: room.roomId,
-//               readBy: { $ne: participant._id }, // ตรวจสอบว่าแชทที่ยังไม่ได้อ่าน
-//             });
-
-//             unreadCount[room.roomId] = roomUnreadCount;
-//           }
-
-//           // คำนวณ total unread count สำหรับผู้ใช้
-//           const totalUnreadCount = Object.values(unreadCount).reduce(
-//             (acc, count) => acc + count,
-//             0
-//           );
-
-//           console.log(
-//             `📦 Total Unread Count for ${participant._id}:`,
-//             totalUnreadCount
-//           );
-
-//           return {
-//             userId: participant._id,
-//             unreadCount,
-//             totalUnreadCount,
-//           };
-//         })
-//       );
-
-//       // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
-//       const totalfilteredUsers = usersWithUnreadCounts.filter(
-//         (user) => user !== null
-//       );
-//       console.log("รวม:", totalfilteredUsers);
-//       io.emit("TotalUnreadCounts", totalfilteredUsers);
-
-//       res.json({ success: true, message: "Chat message saved", newChat });
-//     }
-//   } catch (error) {
-//     console.error("Error saving chat message:", error);
-//     res
-//       .status(500)
-//       .json({ success: false, message: "Error saving chat message" });
-//   }
-// });
-
-// //เร็วแต่ไม่มีแชทล่าสุด
-// app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
-//   try {
-//     const { message, roomId, senderId, senderModel } = req.body;
-    
-//     if (message.length > 10000) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Message exceeds the maximum length of 10000 characters.",
-//       });
-//     }
-
-//     // ดึงข้อมูลผู้ส่ง
-//     const sender = senderModel === "User" 
-//       ? await User.findById(senderId) 
-//       : await MPersonnel.findById(senderId);
-
-//     if (!sender) {
-//       return res.status(404).json({ success: false, message: "User not found" });
-//     }
-
-//     let newChat;
-//     let imageUrl = null, imageName = null, fileSize = null;
-
-//     // หากมีการอัปโหลดไฟล์
-//     if (req.file) {
-//       const bucket = admin.storage().bucket();
-//       const fileName = `${Date.now()}_${req.file.originalname}`;
-//       const file = bucket.file(fileName);
-
-//       // อัปโหลดโดยตรง
-//       await file.save(req.file.buffer, {
-//         metadata: { contentType: req.file.mimetype },
-//       });
-
-//       const [metadata] = await file.getMetadata();
-//       fileSize = metadata.size;
-//       imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
-//       imageName = req.file.originalname;
-//     }
-
-//     // บันทึกแชทลงฐานข้อมูล
-//     newChat = new Chat({
-//       message,
-//       image: imageUrl,
-//       imageName,
-//       sender: sender._id,
-//       senderModel,
-//       roomId,
-//       fileSize,
-//       readBy: [senderId],
-//     });
-
-//     await newChat.save();
-//     await newChat.populate("sender", "name surname");
-
-//     // ส่งข้อความแบบเรียลไทม์
-//     io.to(roomId).emit("receiveMessage", newChat);
-
-//     // ดึงข้อมูลผู้ใช้และ MPersonnel
-//     const [updatedUsers, updatedMPersonnel] = await Promise.all([
-//       User.find({ deletedAt: null }, "name surname username").lean(),
-//       MPersonnel.find({ deletedAt: null }, "name surname username").lean(),
-//     ]);
-
-//     // ดึงห้องแชทที่ผู้ใช้เกี่ยวข้อง
-//     const participantIds = [...updatedUsers, ...updatedMPersonnel].map(p => p._id);
-//     const rooms = await Room.find({ "participants.id": { $in: participantIds } }).lean();
-
-//     // คำนวณ unread count
-//     const usersWithUnreadCounts = await Promise.allSettled(participantIds.map(async participantId => {
-//       const userRooms = rooms.filter(room => room.participants.some(p => String(p.id) === String(participantId)));
-//       if (userRooms.length === 0) return null;
-
-//       let unreadCount = {};
-//       for (const room of userRooms) {
-//         unreadCount[room.roomId] = await Chat.countDocuments({
-//           roomId: room.roomId,
-//           readBy: { $ne: participantId },
-//         });
-//       }
-
-//       return { userId: participantId, unreadCount, totalUnreadCount: Object.values(unreadCount).reduce((acc, count) => acc + count, 0) };
-//     }));
-
-//     // กรองเฉพาะผู้ใช้ที่มีข้อมูล
-//     const totalfilteredUsers = usersWithUnreadCounts.filter(r => r.status === "fulfilled").map(r => r.value);
-//     io.emit("TotalUnreadCounts", totalfilteredUsers);
-
-//     res.json({
-//       success: true,
-//       message: "Chat message saved",
-//       newChat,
-//       imageUrl,
-//       imageName,
-//       fileSize,
-//       roomId,
-//       readBy: [senderId],
-//     });
-
-//   } catch (error) {
-//     console.error("Error saving chat message:", error);
-//     res.status(500).json({ success: false, message: "Error saving chat message" });
-//   }
-// });
 app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
   try {
     const { message, roomId, senderId, senderModel } = req.body;
-    
+
+    // ตรวจสอบข้อความ
     if (message.length > 10000) {
       return res.status(400).json({
         success: false,
@@ -6864,31 +4878,19 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    let newChat;
+    // สร้างตัวแปรสำหรับไฟล์
     let imageUrl = null, imageName = null, fileSize = null;
-    
-    // หากมีการอัปโหลดไฟล์
-    if (req.file) {
-      const bucket = admin.storage().bucket();
-      const fileName = `${Date.now()}_${req.file.originalname}`;
-      const file = bucket.file(fileName);
-      const originalFileName = Buffer.from(
-        req.file.originalname,
-        "latin1"
-      ).toString("utf8");
-      // อัปโหลดโดยตรง
-      await file.save(req.file.buffer, {
-        metadata: { contentType: req.file.mimetype },
-      });
 
-      const [metadata] = await file.getMetadata();
-      fileSize = metadata.size;
-      imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
-      imageName = originalFileName; 
+    // อัปโหลดไฟล์หากมี
+    if (req.file) {
+      const { imageUrl: fileImageUrl, imageName: fileImageName, fileSize: uploadedFileSize } = await uploadFile(req.file);
+      imageUrl = fileImageUrl;
+      imageName = fileImageName;
+      fileSize = uploadedFileSize;
     }
 
-    // บันทึกแชทลงฐานข้อมูล
-    newChat = new Chat({
+    // สร้างข้อความแชทใหม่
+    const newChat = new Chat({
       message,
       image: imageUrl,
       imageName,
@@ -6902,72 +4904,11 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
     await newChat.save();
     await newChat.populate("sender", "name surname");
 
-    // ส่งข้อความแบบเรียลไทม์
+    // กระจายข้อความแบบเรียลไทม์
     io.to(roomId).emit("receiveMessage", newChat);
 
-    // ดึงข้อมูลผู้ใช้และ MPersonnel
-    const [updatedUsers, updatedMPersonnel] = await Promise.all([
-      User.find({ deletedAt: null }, "name surname username").lean(),
-      MPersonnel.find({ deletedAt: null }, "name surname username").lean(),
-    ]);
-
-    // ดึงห้องแชทที่ผู้ใช้เกี่ยวข้อง
-    const participantIds = [...updatedUsers, ...updatedMPersonnel].map(p => p._id);
-    const rooms = await Room.find({ "participants.id": { $in: participantIds } }).lean();
-
-    // อัปเดตข้อมูลผู้ใช้ที่มีแชท
-    const usersWithChats = await Promise.allSettled(updatedUsers.map(async user => {
-      const userRooms = rooms.filter(room => room.participants.some(p => String(p.id) === String(user._id)));
-      if (userRooms.length === 0) return null;
-
-      let latestChat = null;
-      let unreadCount = {};
-
-      for (const room of userRooms) {
-        const roomLatestChat = await Chat.findOne({ roomId: room.roomId }).sort({ createdAt: -1 }).populate("sender", "name surname").lean();
-        if (roomLatestChat) {
-          if (!latestChat || new Date(roomLatestChat.createdAt) > new Date(latestChat.createdAt)) {
-            latestChat = {
-              message: roomLatestChat.message,
-              file: roomLatestChat.image,
-              senderId: roomLatestChat.sender._id,
-              senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
-              createdAt: roomLatestChat.createdAt,
-            };
-          }
-        }
-
-        for (const participant of room.participants) {
-          const unreadCounts = await Chat.countDocuments({
-            roomId: room.roomId,
-            readBy: { $ne: participant.id }, // ตรวจสอบว่าใครยังไม่ได้อ่าน
-          });
-
-          unreadCount[participant.id] = unreadCounts;
-        }      
-      }
-
-      return { _id: user._id, name: user.name, surname: user.surname, latestChat, unreadCount };
-    }));
-
-    const filteredUsers = usersWithChats.filter(r => r.status === "fulfilled").map(r => r.value);
-    io.emit("usersUpdated", filteredUsers); // ✅ เพิ่มกลับมาแล้ว!
-
-    // คำนวณ unread count
-    const usersWithUnreadCounts = await Promise.allSettled(participantIds.map(async participantId => {
-      const userRooms = rooms.filter(room => room.participants.some(p => String(p.id) === String(participantId)));
-      if (userRooms.length === 0) return null;
-
-      let unreadCount = {};
-      for (const room of userRooms) {
-        unreadCount[room.roomId] = await Chat.countDocuments({ roomId: room.roomId, readBy: { $ne: participantId } });
-      }
-
-      return { userId: participantId, unreadCount, totalUnreadCount: Object.values(unreadCount).reduce((acc, count) => acc + count, 0) };
-    }));
-
-    const totalfilteredUsers = usersWithUnreadCounts.filter(r => r.status === "fulfilled").map(r => r.value);
-    io.emit("TotalUnreadCounts", totalfilteredUsers);
+    // อัปเดตผู้ใช้ที่เกี่ยวข้อง
+    await updateUserChatsAndUnreadCounts();
 
     res.json({
       success: true,
@@ -6986,6 +4927,131 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
   }
 });
 
+// ฟังก์ชันอัปโหลดไฟล์
+const uploadFile = async (file) => {
+  const bucket = admin.storage().bucket();
+  const fileName = `${Date.now()}_${file.originalname}`;
+  const fileObj = bucket.file(fileName);
+  const originalFileName = Buffer.from(file.originalname, "latin1").toString("utf8");
+
+  // อัปโหลดไฟล์ไปที่ Firebase
+  await fileObj.save(file.buffer, {
+    metadata: { contentType: file.mimetype },
+  });
+
+  const [metadata] = await fileObj.getMetadata();
+  const fileSize = metadata.size;
+  const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+
+  return { imageUrl, imageName: originalFileName, fileSize };
+};
+
+// ฟังก์ชันอัปเดตผู้ใช้ที่เกี่ยวข้องและจำนวนข้อความที่ยังไม่ได้อ่าน
+const updateUserChatsAndUnreadCounts = async () => {
+  try {
+    // ดึงข้อมูลผู้ใช้ทั้งหมด
+    const updatedUsers = await User.find({ deletedAt: null }, "name surname username").lean();
+    const updatedMPersonnel = await MPersonnel.find({ deletedAt: null }, "name surname username").lean();
+    const allParticipants = [...updatedUsers, ...updatedMPersonnel];
+
+    // ดึงห้องที่ผู้ใช้ทั้งหมดเข้าร่วม
+    const rooms = await Room.find({
+      "participants.id": { $in: allParticipants.map(participant => participant._id) },
+      $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }] 
+    }).lean();
+
+    // คำนวณ unreadCount และแชทล่าสุด
+    const usersWithChats = await Promise.all(updatedUsers.map(async (user) => {
+      const userRooms = rooms.filter((room) =>
+        room.participants.some((p) => String(p.id) === String(user._id))
+      );
+
+      if (userRooms.length === 0) return null;
+
+      let latestChat = null;
+      let unreadCount = {};
+
+      // ดึงแชทล่าสุดในแต่ละห้อง
+      const roomChats = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room.roomId) } } },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: "$roomId", latestChat: { $first: "$$ROOT" } } }
+      ]);
+
+      // Loop ทุก chat ที่ได้รับ
+      for (const chat of roomChats) {
+        // คำนวณ unread count สำหรับแต่ละ participant ในห้อง
+        for (const participant of userRooms.find(room => String(room.roomId) === String(chat._id)).participants) {
+          unreadCount[participant.id] = await Chat.countDocuments({
+            roomId: chat._id,
+            readBy: { $ne: participant.id }  // ตรวจสอบว่า participant ยังไม่ได้อ่าน
+          });
+        }
+
+        // หาข้อความล่าสุดในห้อง
+        if (!latestChat || new Date(chat.latestChat.createdAt) > new Date(latestChat.createdAt)) {
+         
+          const sender = await User.findById(chat.latestChat.sender._id) || await MPersonnel.findById(chat.latestChat.sender._id);
+
+          // หากไม่พบ sender
+          const senderName = sender ? `${sender.name || 'ไม่ทราบชื่อ'} ${sender.surname || 'ไม่ทราบนามสกุล'}` : 'ไม่ทราบชื่อ ไม่ทราบนามสกุล';
+          latestChat = {
+            message: chat.latestChat.message,
+            file: chat.latestChat.image,
+            senderId: chat.latestChat.sender._id,
+            senderName: senderName,            
+            createdAt: chat.latestChat.createdAt
+          };
+        }
+      }
+
+      return { _id: user._id, name: user.name, surname: user.surname, username: user.username, latestChat, unreadCount };
+    }));
+
+    const filteredUsers = usersWithChats.filter(user => user !== null);
+    console.log("รวมusersUpdated:", filteredUsers);
+    io.emit("usersUpdated", filteredUsers);
+
+    // คำนวณ totalUnreadCount สำหรับผู้ใช้ทั้งหมด
+    const usersWithUnreadCounts = await Promise.all(allParticipants.map(async (participant) => {
+      const userRooms = await Room.aggregate([
+        { $match: { "participants.id": participant._id, 
+          $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }]
+        } },
+        { $unwind: "$participants" },
+        { $match: { "participants.id": participant._id } },
+        { $group: { _id: "$roomId" } }
+      ]);
+
+      if (userRooms.length === 0) return null;
+
+      let unreadCount = {};
+
+      const unreadCounts = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room._id) }, 
+          readBy: { $ne: participant._id } } },
+        { $group: { _id: "$roomId", count: { $sum: 1 } } }
+      ]);
+
+      unreadCounts.forEach((item) => {
+        unreadCount[item._id] = item.count;
+      });
+
+      const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
+
+      return {
+        userId: participant._id,
+        unreadCount,
+        totalUnreadCount
+      };
+    }));
+    const totalfilteredUsers = usersWithUnreadCounts.filter(user => user !== null);
+    io.emit("TotalUnreadCounts", totalfilteredUsers);
+
+  } catch (error) {
+    console.error("Error updating user chats and unread counts:", error);
+  }
+};
 
 app.get("/getChatHistory/:roomId", async (req, res) => {
   try {
@@ -7013,76 +5079,59 @@ app.get("/getChatHistory/:roomId", async (req, res) => {
 
 app.get("/users", async (req, res) => {
   try {
-    const userId = req.query.senderId;
-    const updatedUsers = await User.find(
-      { deletedAt: null },
-      "name surname username"
-    ).lean();
+    const updatedUsers = await User.find({ deletedAt: null }, "name surname username").lean();
 
     const rooms = await Room.find({
       "participants.id": { $in: updatedUsers.map((user) => user._id) },
     }).lean();
 
-    const usersWithChats = await Promise.all(
-      updatedUsers.map(async (user) => {
+    // คำนวณ unreadCount และแชทล่าสุด
+    const usersWithChats = await Promise.all(updatedUsers.map(async (user) => {
+      const userRooms = rooms.filter((room) =>
+        room.participants.some((p) => String(p.id) === String(user._id))
+      );
 
-        if (!user) return null;
+      if (userRooms.length === 0) return null;
 
-        const userRooms = rooms.filter((room) =>
-          room.participants.some((p) => String(p.id) === String(user._id))
-        );
+      let latestChat = null;
+      let unreadCount = {};
 
-        if (userRooms.length === 0) {
-          return null;
+      // ดึงแชทล่าสุดในแต่ละห้อง
+      const roomChats = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room.roomId) } } },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: "$roomId", latestChat: { $first: "$$ROOT" } } }
+      ]);
+
+      // Loop ทุก chat ที่ได้รับ
+      for (const chat of roomChats) {
+        // คำนวณ unread count สำหรับแต่ละ participant ในห้อง
+        for (const participant of userRooms.find(room => String(room.roomId) === String(chat._id)).participants) {
+          unreadCount[participant.id] = await Chat.countDocuments({
+            roomId: chat._id,
+            readBy: { $ne: participant.id }  // ตรวจสอบว่า participant ยังไม่ได้อ่าน
+          });
         }
 
-        let latestChat = null;
-        let unreadCount = {};
+        // หาข้อความล่าสุดในห้อง
+        if (!latestChat || new Date(chat.latestChat.createdAt) > new Date(latestChat.createdAt)) {
+         
+          const sender = await User.findById(chat.latestChat.sender._id) || await MPersonnel.findById(chat.latestChat.sender._id);
 
-        for (const room of userRooms) {
-          // ดึงแชทล่าสุดในห้อง
-          const roomLatestChat = await Chat.findOne({ roomId: room.roomId })
-            .sort({ createdAt: -1 })
-            .populate("sender", "name")
-            .lean();
-
-          if (roomLatestChat) {
-            if (
-              !latestChat ||
-              new Date(roomLatestChat.createdAt) >
-                new Date(latestChat.createdAt)
-            ) {
-              latestChat = {
-                message: roomLatestChat.message,
-                file: roomLatestChat.image,
-                senderId: roomLatestChat.sender._id,
-                // senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
-                senderName: `${roomLatestChat.sender.name}`,
-                createdAt: roomLatestChat.createdAt,
-              };
-            }
-          }
-
-          for (const participant of room.participants) {
-            const unreadCounts = await Chat.countDocuments({
-              roomId: room.roomId,
-              readBy: { $ne: participant.id }, 
-            });
-
-            unreadCount[participant.id] = unreadCounts;
-          }
+          // หากไม่พบ sender
+          const senderName = sender ? `${sender.name || 'ไม่ทราบชื่อ'} ${sender.surname || 'ไม่ทราบนามสกุล'}` : 'ไม่ทราบชื่อ ไม่ทราบนามสกุล';
+          latestChat = {
+            message: chat.latestChat.message,
+            file: chat.latestChat.image,
+            senderId: chat.latestChat.sender._id,
+            senderName: senderName,            
+            createdAt: chat.latestChat.createdAt
+          };
         }
+      }
 
-        return {
-          _id: user._id,
-          name: user.name,
-          surname: user.surname,
-          username: user.username,
-          latestChat,
-          unreadCount,
-        };
-      })
-    );
+      return { _id: user._id, name: user.name, surname: user.surname, username: user.username, latestChat, unreadCount };
+    }));
     const filteredUsers = usersWithChats.filter((user) => user !== null);
     console.log("📦 Filtered Users with Chats777:", filteredUsers);
     res.json({ success: true, users: filteredUsers });
@@ -7099,74 +5148,48 @@ app.get("/users", async (req, res) => {
 app.get("/update-unread-count", async (req, res) => {
   try {
 
-    // ดึงข้อมูลผู้ใช้ที่ไม่ถูกลบ
-    const updatedUsers = await User.find(
-      { deletedAt: null },
-      "name surname username"
-    ).lean();
-
-    // ดึงข้อมูล MPersonnel
-    const updatedMPersonnel = await MPersonnel.find(
-      { deletedAt: null },
-      "name surname username"
-    ).lean();
-
-    // รวม User และ MPersonnel
+    const updatedUsers = await User.find({ deletedAt: null }, "name surname username").lean();
+    const updatedMPersonnel = await MPersonnel.find({ deletedAt: null }, "name surname username").lean();
     const allParticipants = [...updatedUsers, ...updatedMPersonnel];
 
-    // ดึงข้อมูลห้องทั้งหมดที่ผู้ใช้และ MPersonnel เป็นสมาชิก
     const rooms = await Room.find({
-      "participants.id": { $in: allParticipants.map((participant) => participant._id) },
+      "participants.id": { $in: allParticipants.map(participant => participant._id) },
+      $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }] 
     }).lean();
 
-    // คำนวณ unread count สำหรับแต่ละผู้ใช้ในห้องนี้
-    const usersWithUnreadCounts = await Promise.all(
-      allParticipants.map(async (participant) => {
-        // หาห้องที่ผู้ใช้อยู่
-        const userRooms = rooms.filter((room) =>
-          room.participants.some((p) => String(p.id) === String(participant._id))
-        );
 
-        if (userRooms.length === 0) {
-          return null;  // ถ้าผู้ใช้ไม่ได้อยู่ในห้องใดๆ ให้ข้ามไป
-        }
+    const usersWithUnreadCounts = await Promise.all(allParticipants.map(async (participant) => {
+      const userRooms = await Room.aggregate([
+        { $match: { "participants.id": participant._id, 
+          $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }]
+        } },
+        { $unwind: "$participants" },
+        { $match: { "participants.id": participant._id } },
+        { $group: { _id: "$roomId" } }
+      ]);
 
-        let unreadCount = {};
+      if (userRooms.length === 0) return null;
 
-        // คำนวณ unread count สำหรับแต่ละห้องที่ผู้ใช้เป็นสมาชิก
-        for (const room of userRooms) {
+      let unreadCount = {};
 
-          const excludedUsers = await User.find({ deletedAt: { $ne: null } }).lean();
-          const excludedUserIds = excludedUsers.map((user) => String(user._id));
-    
-          // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
-          if (excludedUserIds.includes(String(room.roomId))) {
-            continue;
-          }
+      const unreadCounts = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room._id) }, 
+          readBy: { $ne: participant._id } } },
+        { $group: { _id: "$roomId", count: { $sum: 1 } } }
+      ]);
 
-          const roomUnreadCount = await Chat.countDocuments({
-            roomId: room.roomId,
-            readBy: { $ne: participant._id }, // ตรวจสอบว่าแชทที่ยังไม่ได้อ่าน
-          });
+      unreadCounts.forEach((item) => {
+        unreadCount[item._id] = item.count;
+      });
 
-          unreadCount[room.roomId] = roomUnreadCount;
-        }
+      const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
 
-        // คำนวณ total unread count สำหรับผู้ใช้
-        const totalUnreadCount = Object.values(unreadCount).reduce(
-          (acc, count) => acc + count,
-          0
-        );
-
-        console.log(`📦 Total Unread Count for ${participant._id}:`, totalUnreadCount);
-
-        return {
-          userId: participant._id,
-          unreadCount,
-          totalUnreadCount,
-        };
-      })
-    );
+      return {
+        userId: participant._id,
+        unreadCount,
+        totalUnreadCount
+      };
+    }));
 
     // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
     const filteredUsers = usersWithUnreadCounts.filter((user) => user !== null);
@@ -7207,104 +5230,6 @@ app.get('/getMPersonnelList', async (req, res) => {
   }
 });
 
-// ----------------
-
-app.get('/alluserchat', async (req, res) => {
-  try {
-    const userId = req.query.userId;
-    const users = await User.find({ deletedAt: null }).lean();
-
-    const usersWithLastMessage = await Promise.all(
-      users.map(async (user) => {
-        const lastMessage = await Chat.findOne({
-          $or: [{ sender: userId, recipient: user._id }, { sender: user._id, recipient: userId }],
-        })
-          .sort({ createdAt: -1 })
-          .select('message createdAt sender senderModel isRead recipient image')
-          .populate({
-            path: 'sender recipient',
-            select: 'name',
-          })
-          .lean();
-
-        const unreadCount = await Chat.countDocuments({
-          recipient: userId,
-          sender: user._id,
-          isRead: false,
-        });
-
-        return { ...user, lastMessage: lastMessage ? lastMessage : null, unreadCount };
-      })
-    );
-
-    res.json({ data: usersWithLastMessage });
-  } catch (error) {
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-app.get('/lastmessage/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const loginUserId = req.query.loginUserId;
-    const lastMessage = await Chat.findOne({
-      $or: [
-        { sender: userId, recipient: loginUserId },
-        { sender: loginUserId, recipient: userId }
-      ]
-    })
-      .sort({ createdAt: -1 })
-      .select('message createdAt sender senderModel isRead recipient image')
-      .populate({
-        path: 'sender recipient',
-        select: 'name',
-      })
-      .lean();
-
-    res.json({ lastMessage: lastMessage ? lastMessage : null });
-  } catch (error) {
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-
-//รายชื่อ chat หมอ ที่ฝั่งผู้ป่วย
-app.get("/allMpersonnelchat1", async (req, res) => {
-  try {
-    const userId = req.query.userId;
-    const allMpersonnel = await MPersonnel.find({}).lean();
-
-    const usersWithLastMessage = await Promise.all(
-      allMpersonnel.map(async (user) => {
-        const lastMessage = await Chat.findOne({
-          $or: [{ sender: userId, recipient: user._id }, { sender: user._id, recipient: userId }],
-        })
-          .sort({ createdAt: -1 })
-          .select('message createdAt sender senderModel isRead recipient image')
-          .populate({
-            path: 'sender recipient',
-            select: 'name',
-          })
-          .lean();
-
-        const unreadCount = await Chat.countDocuments({
-          recipient: userId,
-          sender: user._id,
-          isRead: false,
-        });
-
-        return { ...user, lastMessage: lastMessage ? lastMessage : null, unreadCount };
-      })
-    );
-
-    res.json({ data: usersWithLastMessage });
-  } catch (error) {
-    console.error("Error in /allMpersonnelchat1 endpoint:", error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// --------------------------------
 
 //แดชบอร์ด
 app.get("/diagnosis-count", async (req, res) => {
@@ -7459,7 +5384,7 @@ app.get('/completedAssessmentsCount', async (req, res) => {
 //   server.listen(PORT, () => {
 //     console.log('Server is running on port 5000');
 //   });
-server.listen(5000, () => {
+server.listen(5000, '0.0.0.0',() => {
   console.log('Server is running on port 5000');
 });
 

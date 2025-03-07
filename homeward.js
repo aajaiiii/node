@@ -124,8 +124,10 @@ const UserScehma = new mongoose.Schema(
     ID_card_number: String,
     nationality: String,
     Address: String,
+    acceptPDPA: { type: Boolean, default: false },
     deletedAt: { type: Date, default: null },
     deleteExpiry:  { type: Date, default: null },
+    AdddataFirst: { type: Boolean, default: false },
     AdddataFirst: { type: Boolean, default: false },
     physicalTherapy: { type: Boolean, default: false },
     isEmailVerified: { type: Boolean, default: false }
@@ -373,6 +375,7 @@ mongoose.model('Chat', chatSchema);
 
 const RoomSchema = new mongoose.Schema({
   roomId: mongoose.Schema.Types.ObjectId,
+  deletedAt: { type: Date, default: null },
   participants: [
     {
       id: mongoose.Schema.Types.ObjectId,
