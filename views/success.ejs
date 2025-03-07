@@ -9,10 +9,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Prompt&display=swap');
 
         * {
-            font-family: 'IBM Plex Sans Thai', sans-serif;
+            font-family: "Prompt", serif;
         }
 
         .btnsubmit {
@@ -44,18 +44,23 @@
             align-items: center;
             margin: auto;
         }
+
         .header {
             text-align: center;
-            font-size: 25px;
+            font-size: 20px;
             font-weight: 600;
-            margin: 20px;
+            color: #1565c0;
+            /* margin: 20px; */
         }
-.text{
-    text-align: center;
-}
-.textemail{
-    font-weight: 600;
-}
+
+        .text {
+            text-align: center;
+        }
+
+        .textemail {
+            font-weight: 600;
+        }
+
         .formcontainerpf {
             /* box-sizing: border-box; */
             border: 0.1px solid #ddd;
@@ -71,7 +76,7 @@
     flex-wrap: wrap; */
         }
     </style>
- 
+
 </head>
 
 <body>
@@ -79,14 +84,17 @@
         <!-- <div class="logoreset">
             <img src=".logo.png" alt="logo">
         </div> -->
-        <h1 class="header">
-            รหัสผ่านของคุณเปลี่ยนแล้ว
-        </h1>
+
         <div class="formcontainerpf card mb-3">
-        <p class="text">รหัสผ่านของคุณสำหรับอีเมล <span class="textemail"><%= email %> </span>ได้รับการเปลี่ยนสำเร็จแล้ว</p>
-        <p class="text">คุณสามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ของคุณ</p>
-    </div>
+            <h1 class="header">
+                รหัสผ่านของคุณเปลี่ยนแล้ว
+            </h1>
+            <p class="text">รหัสผ่านของคุณสำหรับอีเมล <span class="textemail">
+                    <%= email %>
+                </span>ได้รับการเปลี่ยนสำเร็จแล้ว</p>
+            <p class="text">คุณสามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ของคุณ</p>
         </div>
+    </div>
     </div>
 
 

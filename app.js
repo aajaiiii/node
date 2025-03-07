@@ -8,16 +8,11 @@ app.use(express.urlencoded({ extended: false }));
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 var nodemailer = require("nodemailer");
-const randomstring = require("randomstring");
-const slugify = require("slugify");
 const cors = require("cors");
 require('dotenv').config();
 const { google } = require("googleapis");
-const axios = require('axios');
 const crypto = require('crypto');
-const refreshTokens = [];
 const session = require('express-session');
-const http = require('http');
 const socketIo = require('socket.io');
 const server = http.createServer(app);
 const cron = require("node-cron");
@@ -511,8 +506,8 @@ app.post("/forgot-password", async (req, res) => {
     var mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Reset your password for Homeward",
-      text: `Hello,\n\nFollow this link to reset your Homeward password for your ${email} account.\n${link}\n\nIf you didn't ask to reset your password,you can ignore this email.\n\nThanks,\n\nYour Homeward team`,
+      subject: "รีเซ็ทรหัสผ่านบัญชีผู้ดูแลระบบ Homeward ของคุณ",
+      text: `เรียนผู้ใช้บริการ\n\nคุณสามารถคลิกลิงก์ด้านล่างเพื่อทำการรีเซ็ทรหัสผ่านสำหรับบัญชี ${email} ของคุณในระบบ Homeward:\n${link}\n\nหากคุณไม่ได้ทำการขอรีเซ็ทรหัสผ่านนี้,โปรดละเว้นอีเมลนี้.\n\nขอขอบคุณที่ใช้บริการของเรา\n\nทีมงาน Homeward`,
     };
 
     transporter.sendMail(mailOptions, function (error, info) {
@@ -1868,39 +1863,6 @@ app.post("/loginmpersonnel", async (req, res) => {
 });
 
 //โปรไฟล์หมอ
-// app.post("/profiledt", async (req, res) => {
-//   const { token } = req.body;
-//   try {
-//     const mpersonnel = jwt.verify(token, JWT_SECRET, (error, decoded) => {
-//       if (error) {
-//         if (error.name === "TokenExpiredError") {
-//           return "token expired";
-//         } else {
-//           throw error;
-//         }
-//       }
-//       return decoded;
-//     });
-
-//     console.log(mpersonnel);
-
-//     if (mpersonnel === "token expired") {
-//       return res.send({ status: "error", data: "token expired" });
-//     }
-
-//     const userMP = mpersonnel.username;
-//     MPersonnel.findOne({ username: userMP })
-//       .then((data) => {
-//         res.send({ status: "ok", data: data });
-//       })
-//       .catch((error) => {
-//         res.send({ status: "error", data: error });
-//       });
-//   } catch (error) {
-//     console.error("Error verifying token:", error);
-//     res.send({ status: "error", data: "token verification error" });
-//   }
-// });
 app.post("/profiledt", async (req, res) => {
   const { token } = req.body;
   try {
@@ -2008,8 +1970,8 @@ app.post("/forgot-passworddt", async (req, res) => {
     var mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Reset your password for Homeward",
-      text: `Hello,\n\nFollow this link to reset your Homeward password for your ${email} account.\n${link}\n\nIf you didn't ask to reset your password,you can ignore this email.\n\nThanks,\n\nYour Homeward team`,
+      subject: "รีเซ็ทรหัสผ่านบัญชี Homeward ของคุณ",
+      text: `เรียนผู้ใช้บริการ\n\nคุณสามารถคลิกลิงก์ด้านล่างเพื่อทำการรีเซ็ทรหัสผ่านสำหรับบัญชี ${email} ของคุณในระบบ Homeward:\n${link}\n\nหากคุณไม่ได้ทำการขอรีเซ็ทรหัสผ่านนี้,โปรดละเว้นอีเมลนี้.\n\nขอขอบคุณที่ใช้บริการของเรา\n\nทีมงาน Homeward`,
     };
 
     transporter.sendMail(mailOptions, function (error, info) {
@@ -2734,118 +2696,49 @@ app.post('/reset-password', async (req, res) => {
 
 
 //ดึงข้อมูลผู้ดูแล
-// app.get("/getcaregiver/:id", async (req, res) => {
-//   const { id } = req.params;
-//   try {
-//     if (!id) {
-//       return res.status(400).send({
-//         status: "error",
-//         message: "id is required",
-//       });
-//     }
-//     // ค้นหาผู้ดูแลทั้งหมดที่เกี่ยวข้องกับ user
-//     const caregivers = await Caregiver.find({ user: id });
-//     if (!caregivers || caregivers.length === 0) {
-//       return res.status(404).send({
-//         status: "error",
-//         message: "No caregivers found for this user",
-//       });
-//     }
-//     res.send({ status: "ok", data: caregivers });
-//   } catch (error) {
-//     console.log(error);
-//     res.status(500).send({ status: "error", message: "Internal Server Error" });
-//   }
-// });
-
-// app.get("/getcaregiver/:id", async (req, res) => {
-//   const { id } = req.params;
-
-//   try {
-//     if (!id) {
-//       return res.status(400).send({
-//         status: "error",
-//         message: "ID is required",
-//       });
-//     }
-
-//     // ค้นหา caregiver ทั้งหมดที่เกี่ยวข้อง
-//     const caregivers = await Caregiver.find(
-//       { "userRelationships.user": id } // ค้นหา userRelationships.user ที่ตรงกับ id
-//     ).populate("userRelationships.user", "name email"); // Populate user สำหรับข้อมูลเพิ่มเติม
-
-//     // if (!caregivers || caregivers.length === 0) {
-//     //   return res.status(404).send({
-//     //     status: "error",
-//     //     message: "No caregivers found for this user",
-//     //   });
-//     // }
-
-//     // กรองเฉพาะ userRelationships ที่เกี่ยวข้องกับ userId
-//     const filteredCaregivers = caregivers.map((caregiver) => ({
-//       _id: caregiver._id,
-//       ID_card_number: caregiver.ID_card_number,
-//       name: caregiver.name,
-//       surname: caregiver.surname,
-//       tel: caregiver.tel,
-//       userRelationships: caregiver.userRelationships.filter(
-//         (rel) => rel.user._id.toString() === id
-//       ),
-//     }));
-
-//     res.status(200).send({
-//       status: "ok",
-//       data: filteredCaregivers,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching caregivers:", error);
-//     res.status(500).send({
-//       status: "error",
-//       message: "Internal Server Error",
-//     });
-//   }
-// });
 app.get("/getcaregiver/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
-      if (!id) {
-          return res.status(400).send({
-              status: "error",
-              message: "ID is required",
-          });
-      }
-
-      // ค้นหา caregiver ทั้งหมดที่เกี่ยวข้อง
-      const caregivers = await Caregiver.find(
-          { "userRelationships.user": id } // ค้นหา userRelationships.user ที่ตรงกับ id
-      ).populate("userRelationships.user", "name email").lean(); // ✅ ใช้ lean() เพื่อดึง JSON
-
-      // กรองเฉพาะ userRelationships ที่เกี่ยวข้องกับ userId
-      const filteredCaregivers = caregivers.map((caregiver) => {
-          const relationshipData = caregiver.userRelationships.find(rel => rel.user._id.toString() === id);
-
-          return {
-              _id: caregiver._id,
-              ID_card_number: caregiver.ID_card_number,
-              name: caregiver.name,
-              surname: caregiver.surname,
-              tel: caregiver.tel,
-              relationship: relationshipData ? relationshipData.relationship : "ไม่ระบุ", // ✅ เพิ่ม relationship
-          };
+    if (!id) {
+      return res.status(400).send({
+        status: "error",
+        message: "ID is required",
       });
+    }
 
-      res.status(200).send({
-          status: "ok",
-          data: filteredCaregivers,
-      });
+    // 🔹 ค้นหา caregiver และ populate user
+    const caregivers = await Caregiver.find(
+      { "userRelationships.user": id }
+    )
+      .populate({
+        path: "userRelationships.user",
+        select: "name email",
+      })
+      .lean(); // ✅ ใช้ `.lean()` เพื่อทำให้ Object ที่ดึงมาสามารถอ่านได้ง่ายขึ้น
 
+    // 🔹 กรองเฉพาะ userRelationships ที่ `user` มีค่า (ไม่ใช่ `null`)
+    const filteredCaregivers = caregivers.map((caregiver) => ({
+      _id: caregiver._id,
+      ID_card_number: caregiver.ID_card_number,
+      name: caregiver.name,
+      surname: caregiver.surname,
+      tel: caregiver.tel,
+      userRelationships: caregiver.userRelationships.filter(
+        (rel) => rel.user && rel.user._id && String(rel.user._id) === id // ✅ ตรวจสอบก่อนเรียก `.user._id`
+      ),
+    }));
+
+    res.status(200).send({
+      status: "ok",
+      data: filteredCaregivers,
+    });
   } catch (error) {
-      console.error("Error fetching caregivers:", error);
-      res.status(500).send({
-          status: "error",
-          message: "Internal Server Error",
-      });
+    console.error("❌ Error fetching caregivers:", error);
+    res.status(500).send({
+      status: "error",
+      message: "Internal Server Error",
+    });
   }
 });
 
@@ -4091,29 +3984,6 @@ app.get("/searchuser", async (req, res) => {
 
 
 //ลบผู้ป่วย
-
-//verไม่มีใส่รหัสผ่านแอดมิน
-// app.delete("/deleteUser/:id", async (req, res) => {
-//   const UserId = req.params.id;
-//   try {
-//     const result = await User.findOneAndUpdate(
-//       { _id: UserId },
-//       { $set: { deletedAt: new Date() } }
-//     );
-
-//     if (result) {
-//       res.json({ status: "OK", data: "ลบข้อมูลผู้ป่วยสำเร็จ" });
-//     } else {
-//       res.json({
-//         status: "Not Found",
-//         data: "ไม่พบข้อมูลผู้ป่วยนี้หรือข้อมูลถูกลบไปแล้ว",
-//       });
-//     }
-//   } catch (error) {
-//     console.error("Error during deletion:", error);
-//     res.status(500).json({ status: "Error", data: "Internal Server Error" });
-//   }
-// });
 app.delete("/deleteUser/:id", async (req, res) => {
   const UserId = req.params.id;
   const { adminPassword, adminId } = req.body; // adminId ต้องถูกส่งมาจากฝั่ง frontend
@@ -4260,23 +4130,6 @@ app.post("/updateuser/:id", async (req, res) => {
   }
 });
 
-
-// app.get("/getadmin/:id", async (req, res) => {
-//   const { id } = req.params;
-
-//   try {
-//     const admin = await Admins.findById(id);
-
-//     if (!admin) {
-//       return res.status(404).json({ error: "admin not found" });
-//     }
-
-//     res.json(admin);
-//   } catch (error) {
-//     console.error("Error fetching user:", error);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// });
 
 app.post("/updatenameadmin/:id", async (req, res) => {
   const { name, surname } = req.body;
@@ -4439,22 +4292,6 @@ app.get("/getmpersonnel/:id", async (req, res) => {
   }
 });
 
-
-// app.get("/getmpersonnelass/:id", async (req, res) => {
-//   const { id } = req.params;
-//   try {
-//     const mpersonnel = await MPersonnel.findOne(id);
-
-//     if (!mpersonnel) {
-//       return res.status(404).json({ error: "mpersonnel not found" });
-//     }
-
-//     res.json(mpersonnel);
-//   } catch (error) {
-//     console.error("Error fetching mpersonnel:", error);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// });
 
 //แก้ไขแพทย์
 app.post("/updatemp/:id", async (req, res) => {
@@ -4632,17 +4469,6 @@ app.delete("/deletesymptom/:id", async (req, res) => {
 });
 
 //แก้ไขอาการ
-// app.get("/check-symptom-name", async (req, res) => {
-//   const { name } = req.query;
-//   try {
-//     const existingSymptom = await Symptom.findOne({ name });
-//     res.json({ exists: !!existingSymptom });
-//   } catch (error) {
-//     console.error("Error checking symptom name:", error);
-//     res.status(500).json({ message: "Error checking symptom name" });
-//   }
-// });
-
 app.post("/updatesymptom/:id", async (req, res) => {
   const { name } = req.body;
   const { id } = req.params;
