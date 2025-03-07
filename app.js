@@ -385,11 +385,18 @@ app.post('/send-otp3', async (req, res) => {
     }
 
     // ตรวจสอบว่าอีเมลที่ส่งมามีการยืนยันแล้วหรือไม่
+    // const existingUser = await mongoose.model('User').findOne({ email });
+    // if (existingUser && existingUser.isEmailVerified) {
+    //   return res.status(400).json({ error: 'อีเมลนี้ได้รับการยืนยันแล้ว' });
+    // }
     const existingUser = await mongoose.model('User').findOne({ email });
     if (existingUser && existingUser.isEmailVerified) {
-      return res.status(400).json({ error: 'อีเมลนี้ได้รับการยืนยันแล้ว' });
+      return res.status(200).json({ 
+        success: false, 
+        status: "verified", 
+        message: "อีเมลนี้ได้รับการยืนยันแล้ว" 
+      });
     }
-
     // สร้าง OTP
     const otp = crypto.randomInt(100000, 999999).toString();
     await OTPModel.updateOne({ username }, { otp }, { upsert: true });
@@ -2493,8 +2500,8 @@ app.post('/updateuserinfo', async (req, res) => {
             ID_card_number,
             nationality,
             Address,
-            AdddataFirst: true,
-            acceptPDPA:true
+            // AdddataFirst: true,
+            // acceptPDPA:true
           },
         }
       );
@@ -2751,6 +2758,53 @@ app.post('/reset-password', async (req, res) => {
 //   }
 // });
 
+// app.get("/getcaregiver/:id", async (req, res) => {
+//   const { id } = req.params;
+
+//   try {
+//     if (!id) {
+//       return res.status(400).send({
+//         status: "error",
+//         message: "ID is required",
+//       });
+//     }
+
+//     // ค้นหา caregiver ทั้งหมดที่เกี่ยวข้อง
+//     const caregivers = await Caregiver.find(
+//       { "userRelationships.user": id } // ค้นหา userRelationships.user ที่ตรงกับ id
+//     ).populate("userRelationships.user", "name email"); // Populate user สำหรับข้อมูลเพิ่มเติม
+
+//     // if (!caregivers || caregivers.length === 0) {
+//     //   return res.status(404).send({
+//     //     status: "error",
+//     //     message: "No caregivers found for this user",
+//     //   });
+//     // }
+
+//     // กรองเฉพาะ userRelationships ที่เกี่ยวข้องกับ userId
+//     const filteredCaregivers = caregivers.map((caregiver) => ({
+//       _id: caregiver._id,
+//       ID_card_number: caregiver.ID_card_number,
+//       name: caregiver.name,
+//       surname: caregiver.surname,
+//       tel: caregiver.tel,
+//       userRelationships: caregiver.userRelationships.filter(
+//         (rel) => rel.user._id.toString() === id
+//       ),
+//     }));
+
+//     res.status(200).send({
+//       status: "ok",
+//       data: filteredCaregivers,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching caregivers:", error);
+//     res.status(500).send({
+//       status: "error",
+//       message: "Internal Server Error",
+//     });
+//   }
+// });
 app.get("/getcaregiver/:id", async (req, res) => {
   const { id } = req.params;
 
@@ -2762,19 +2816,17 @@ app.get("/getcaregiver/:id", async (req, res) => {
       });
     }
 
-    // ค้นหา caregiver ทั้งหมดที่เกี่ยวข้อง
+    // 🔹 ค้นหา caregiver และ populate user
     const caregivers = await Caregiver.find(
-      { "userRelationships.user": id } // ค้นหา userRelationships.user ที่ตรงกับ id
-    ).populate("userRelationships.user", "name email"); // Populate user สำหรับข้อมูลเพิ่มเติม
+      { "userRelationships.user": id }
+    )
+      .populate({
+        path: "userRelationships.user",
+        select: "name email",
+      })
+      .lean(); // ✅ ใช้ `.lean()` เพื่อทำให้ Object ที่ดึงมาสามารถอ่านได้ง่ายขึ้น
 
-    // if (!caregivers || caregivers.length === 0) {
-    //   return res.status(404).send({
-    //     status: "error",
-    //     message: "No caregivers found for this user",
-    //   });
-    // }
-
-    // กรองเฉพาะ userRelationships ที่เกี่ยวข้องกับ userId
+    // 🔹 กรองเฉพาะ userRelationships ที่ `user` มีค่า (ไม่ใช่ `null`)
     const filteredCaregivers = caregivers.map((caregiver) => ({
       _id: caregiver._id,
       ID_card_number: caregiver.ID_card_number,
@@ -2782,7 +2834,7 @@ app.get("/getcaregiver/:id", async (req, res) => {
       surname: caregiver.surname,
       tel: caregiver.tel,
       userRelationships: caregiver.userRelationships.filter(
-        (rel) => rel.user._id.toString() === id
+        (rel) => rel.user && rel.user._id && String(rel.user._id) === id // ✅ ตรวจสอบก่อนเรียก `.user._id`
       ),
     }));
 
@@ -2791,7 +2843,7 @@ app.get("/getcaregiver/:id", async (req, res) => {
       data: filteredCaregivers,
     });
   } catch (error) {
-    console.error("Error fetching caregivers:", error);
+    console.error("❌ Error fetching caregivers:", error);
     res.status(500).send({
       status: "error",
       message: "Internal Server Error",
@@ -4063,7 +4115,6 @@ app.get("/searchuser", async (req, res) => {
 //     res.status(500).json({ status: "Error", data: "Internal Server Error" });
 //   }
 // });
-
 app.delete("/deleteUser/:id", async (req, res) => {
   const UserId = req.params.id;
   const { adminPassword, adminId } = req.body; // adminId ต้องถูกส่งมาจากฝั่ง frontend
@@ -4093,7 +4144,7 @@ app.delete("/deleteUser/:id", async (req, res) => {
       {
         $set: {
           deletedAt: new Date(),
-          deleteExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 วัน
+          deleteExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 
         },
       },
       { new: true }
@@ -4101,7 +4152,12 @@ app.delete("/deleteUser/:id", async (req, res) => {
 
 
     if (result) {
-      res.json({ status: "OK", data: "ลบข้อมูลผู้ป่วยสำเร็จ" });
+
+      await Room.updateMany(
+        { roomId: UserId },
+        { $set: { deletedAt: new Date() } } 
+      );
+      res.json({ status: "OK", data: "ลบข้อมูลผู้ป่วยสำเร็จ และอัปเดตข้อมูลในห้อง" });
     } else {
       res.status(404).json({
         status: "Not Found",
@@ -4126,12 +4182,19 @@ app.post("/recoveruser/:id", async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: "ไม่พบผู้ใช้" });
     }
+
+    const updateRooms = await Room.updateMany(
+      { roomId: userId }, 
+      { $set: { deletedAt: null } } 
+    );
+
     res.json({ success: true, message: "กู้คืนข้อมูลสำเร็จ", data: user });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "เกิดข้อผิดพลาด" });
   }
 });
+
 
 //ดึงคู่ข้อมูลผู้ป่วย
 app.get("/getuser/:id", async (req, res) => {
@@ -4663,637 +4726,143 @@ app.get("/searchuserchat", async (req, res) => {
 });
 
 
-//เริ่มต้นแก้ใหม่ 191267
-io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
+//ล่าสุด 070368
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
 
-  // เข้าห้องแชท
-  socket.on('joinRoom', (roomId) => {
+  socket.on("joinRoom", (roomId) => {
     socket.join(roomId);
     console.log(`User joined room: ${roomId}`);
   });
 
-   
-    // อัปเดตข้อความเมื่อมีการอ่านข้อความ
-    socket.on("markAsRead", async ({ roomId, messageId, userId }) => {
-      try {
-        // ตรวจสอบ userId ว่าเป็น ObjectId ที่ถูกต้อง
-        if (!mongoose.Types.ObjectId.isValid(userId)) {
-          console.error(`Invalid userId: ${userId}`);
-          return;
-        }
-        const chatMessage = await Chat.findById(messageId);
-        if (chatMessage) {
-          const isAlreadyRead = chatMessage.readBy.some(
-            (readerId) => readerId.toString() === userId
-          );
-          if (!isAlreadyRead && chatMessage.sender.toString() !== userId) {
-            await Chat.findByIdAndUpdate(
-              messageId,
-              { $addToSet: { readBy: userId } }, // ป้องกันค่าซ้ำใน readBy
-              { new: true } // คืนค่าที่อัปเดตกลับมา
-            );
-         const chats = await Chat.find({
-          roomId,
-          sender: { $ne: userId },
-          readBy: { $nin: [userId] },
-        });
-            // ส่งข้อมูลอัปเดตให้ทุกคนในห้อง
-            io.to(roomId).emit("readByUpdated", {
-              messageId,
-              readBy: [...chatMessage.readBy, userId], // รวม userId ใหม่
-              unreadCount: chats.length,
-            });
-            console.log(`Message ${messageId} marked as read by ${userId}`);
-
-            const [updatedUsers, updatedMPersonnel] = await Promise.all([
-              User.find({ deletedAt: null }, "name surname username").lean(),
-              MPersonnel.find({ deletedAt: null }, "name surname username").lean(),
-            ]);
-            
-            const allParticipants = [...updatedUsers, ...updatedMPersonnel]; 
-            
-        
-            // ดึงข้อมูลห้องทั้งหมดที่ผู้ใช้และ MPersonnel เป็นสมาชิก
-            const participantIds = [...updatedUsers, ...updatedMPersonnel].map(p => p._id);
-
-            const totalrooms = await Room.find({ "participants.id": { $in: participantIds } }).lean();
-        
-            // คำนวณ unread count สำหรับแต่ละผู้ใช้ในห้องนี้
-            const usersWithUnreadCounts = await Promise.allSettled(
-              allParticipants.map(async (participant) => {
-                // หาห้องที่ผู้ใช้อยู่
-                const userRooms = totalrooms.filter((room) =>
-                  room.participants.some((p) => String(p.id) === String(participant._id))
-                );
-        
-                if (userRooms.length === 0) { return null;}
-        
-                let unreadCount = {};
-        
-                // คำนวณ unread count สำหรับแต่ละห้องที่ผู้ใช้เป็นสมาชิก
-                for (const room of userRooms) {
-                  const excludedUsers = await User.find({ deletedAt: { $ne: null } }).lean();
-                  const excludedUserIds = excludedUsers.map((user) => String(user._id));
-            
-                  // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
-                  if (excludedUserIds.includes(String(room.roomId))) {
-                    continue;
-                  }
-
-                  const roomUnreadCount = await Chat.countDocuments({
-                    roomId: room.roomId,
-                    readBy: { $ne: participant._id }, // ตรวจสอบว่าแชทที่ยังไม่ได้อ่าน
-                  });
-        
-                  unreadCount[room.roomId] = roomUnreadCount;
-                }
-        
-                // คำนวณ total unread count สำหรับผู้ใช้
-                const totalUnreadCount = Object.values(unreadCount).reduce(
-                  (acc, count) => acc + count,
-                  0
-                );
-        
-                console.log(`📦 Total Unread Count for ${participant._id}:`, totalUnreadCount);
-        
-                return {
-                  userId: participant._id,
-                  unreadCount,
-                  totalUnreadCount,
-                };
-              })
-            );
-        
-            // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
-            const totalfilteredUsers = usersWithUnreadCounts.filter((user) => user !== null);
-            console.log('รวม:', totalfilteredUsers);
-            io.emit("TotalUnreadCounts", totalfilteredUsers);
-          }
-        }
-       
-      } catch (error) {
-        console.error("Error updating readBy:", error);
+  socket.on("markAsRead", async ({ roomId, messageId, userId }) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        console.error(`Invalid userId: ${userId}`);
+        return;
       }
-    });
-  
-  socket.on('disconnect', () => {
-    console.log('A user disconnected:', socket.id);
+
+      const chatMessage = await Chat.findById(messageId);
+      if (chatMessage) {
+        const isAlreadyRead = chatMessage.readBy.some(
+          (readerId) => readerId.toString() === userId
+        );
+        if (!isAlreadyRead && chatMessage.sender.toString() !== userId) {
+          await Chat.findByIdAndUpdate(
+            messageId,
+            { $addToSet: { readBy: userId } },
+            { new: true }
+          );
+
+          // คำนวณ unreadCount สำหรับห้องทั้งหมดในครั้งเดียว
+          const unreadChats = await Chat.aggregate([
+            {
+              $lookup: {
+                from: "rooms", // ชื่อ collection ของ Room
+                localField: "roomId",
+                foreignField: "roomId",
+                as: "roomInfo",
+              },
+            },
+            {
+              $match: {
+                "roomInfo.deletedAt": { $exists: false }, 
+                roomId,
+                sender: { $ne: userId },
+                readBy: { $nin: [userId] },
+              },
+            },
+            {
+              $group: {
+                _id: "$roomId",
+                count: { $sum: 1 },
+              },
+            },
+          ]);
+
+          io.to(roomId).emit("readByUpdated", {
+            messageId,
+            readBy: [...chatMessage.readBy, userId],
+            unreadCount: unreadChats.length,
+          });
+
+          console.log(`Message ${messageId} marked as read by ${userId}`);
+
+          // ดึงข้อมูลผู้ใช้และคำนวณ unread counts โดยใช้ aggregate
+          const allParticipants = await User.aggregate([
+            { $match: { deletedAt: null } },
+            { $project: { name: 1, surname: 1, username: 1 } },
+          ]);
+
+          const allMPersonnel = await MPersonnel.aggregate([
+            { $match: { deletedAt: null } },
+            { $project: { name: 1, surname: 1, username: 1 } },
+          ]);
+
+          const totalParticipants = [...allParticipants, ...allMPersonnel];
+
+          // ใช้ aggregate เพื่อดึงข้อมูลห้องที่ผู้ใช้เป็นสมาชิก
+          const rooms = await Room.aggregate([
+            { $match: { "participants.id": { $in: totalParticipants.map((p) => p._id) },
+            $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
+          } },
+            { $unwind: "$participants" },
+            { $group: { _id: "$participants.id", rooms: { $push: "$roomId" } } },
+          ]);
+
+          // คำนวณ unread count ในแต่ละห้อง
+          const usersWithUnreadCounts = await Promise.all(
+            totalParticipants.map(async (participant) => {
+              const userRooms = rooms.find((room) => room._id.toString() === participant._id.toString())?.rooms || [];
+
+              if (userRooms.length === 0) return null;
+
+              let unreadCount = {};
+
+              const roomUnreadCounts = await Chat.aggregate([
+                {
+                  $match: {
+                    roomId: { $in: userRooms },
+                    readBy: { $ne: participant._id },
+                  },
+                },
+                {
+                  $group: {
+                    _id: "$roomId",
+                    count: { $sum: 1 },
+                  },
+                },
+              ]);
+
+              roomUnreadCounts.forEach((item) => {
+                unreadCount[item._id] = item.count;
+              });
+
+              const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
+
+              return { userId: participant._id, unreadCount, totalUnreadCount };
+            })
+          );
+
+          const filteredUsers = usersWithUnreadCounts.filter((user) => user !== null);
+          io.emit("TotalUnreadCounts", filteredUsers);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating readBy:", error);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("A user disconnected:", socket.id);
   });
 });
 
-
-// app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
-//   try {
-//     const { message, roomId, senderId, senderModel } = req.body;
-//     let sender;
-//     if (message.length > 10000) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Message exceeds the maximum length of 1000 characters.",
-//       });
-//     }
-
-//     if (senderModel === "User") {
-//       sender = await User.findById(senderId);
-//     } else if (senderModel === "MPersonnel") {
-//       sender = await MPersonnel.findById(senderId);
-//     }
-
-//     if (!sender) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "User not found" });
-//     }
-
-//     let newChat;
-
-//     // ตรวจสอบว่ามีการอัปโหลดไฟล์มาหรือไม่
-//     if (req.file) {
-//       const bucket = admin.storage().bucket();
-//       const fileName = req.file.originalname;
-//       const file = bucket.file(fileName);
-//       const originalFileName = Buffer.from(
-//         req.file.originalname,
-//         "latin1"
-//       ).toString("utf8");
-
-//       const fileStream = file.createWriteStream({
-//         metadata: {
-//           contentType: req.file.mimetype,
-//         },
-//       });
-
-//       fileStream.on("error", (err) => {
-//         console.error("Error uploading image:", err);
-//         return res
-//           .status(500)
-//           .json({ success: false, message: "Error uploading image" });
-//       });
-
-//       fileStream.on("finish", async () => {
-//         const [metadata] = await file.getMetadata();
-//         const fileSize = metadata.size;
-
-//         const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${
-//           bucket.name
-//         }/o/${encodeURIComponent(fileName)}?alt=media`;
-
-//         newChat = new Chat({
-//           message,
-//           image: imageUrl,
-//           imageName: originalFileName,
-//           sender: sender._id,
-//           senderModel,
-//           roomId,
-//           fileSize,
-//           readBy: [senderId],
-//         });
-
-//         await newChat.save();
-//         await newChat.populate("sender", "name surname");
-
-//         // กระจายข้อความแบบเรียลไทม์
-//         io.to(roomId).emit("receiveMessage", newChat);
-
-//         const updatedUsers = await User.find(
-//           { deletedAt: null },
-//           "name surname username"
-//         ).lean();
-
-//         const updatedMPersonnel = await MPersonnel.find(
-//           { deletedAt: null },
-//           "name surname username"
-//         ).lean();
-
-//         const rooms = await Room.find({
-//           "participants.id": { $in: updatedUsers.map((user) => user._id) },
-//         }).lean();
-
-//         const usersWithChats = await Promise.all(
-//           updatedUsers.map(async (user) => {
-//             const userRooms = rooms.filter((room) =>
-//               room.participants.some((p) => String(p.id) === String(user._id))
-//             );
-
-//             if (userRooms.length === 0) {
-//               return null;
-//             }
-
-//             let latestChat = null;
-//             let unreadCount = {};
-
-//             for (const room of userRooms) {
-//               // ดึงแชทล่าสุดในห้อง
-//               const roomLatestChat = await Chat.findOne({ roomId: room.roomId })
-//                 .sort({ createdAt: -1 })
-//                 .populate("sender", "name surname")
-//                 .lean();
-
-//               if (roomLatestChat) {
-//                 if (
-//                   !latestChat ||
-//                   new Date(roomLatestChat.createdAt) >
-//                     new Date(latestChat.createdAt)
-//                 ) {
-//                   latestChat = {
-//                     message: roomLatestChat.message,
-//                     file: roomLatestChat.image,
-//                     senderId: roomLatestChat.sender._id,
-//                     senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
-//                     createdAt: roomLatestChat.createdAt,
-//                   };
-//                 }
-//               }
-
-//               // ดึงจำนวนข้อความที่ยังไม่ได้อ่านสำหรับทุก participants ในห้องนี้
-//               for (const participant of room.participants) {
-//                 const unreadCounts = await Chat.countDocuments({
-//                   roomId: room.roomId,
-//                   readBy: { $ne: participant.id }, // ตรวจสอบว่าใครยังไม่ได้อ่าน
-//                 });
-
-//                 unreadCount[participant.id] = unreadCounts;
-//               }
-//             }
-
-//             return {
-//               _id: user._id,
-//               name: user.name,
-//               surname: user.surname,
-//               // username: user.username,
-//               latestChat,
-//               unreadCount,
-//             };
-//           })
-//         );
-//         const filteredUsers = usersWithChats.filter((user) => user !== null);
-
-//         io.emit("usersUpdated", filteredUsers);
-
-//         const allParticipants = [...updatedUsers, ...updatedMPersonnel];
-
-//         const totalrooms = await Room.find({
-//           "participants.id": {
-//             $in: allParticipants.map((participant) => participant._id),
-//           },
-//         }).lean();
-
-//         const usersWithUnreadCounts = await Promise.all(
-//           allParticipants.map(async (participant) => {
-//             const userRooms = totalrooms.filter((room) =>
-//               room.participants.some(
-//                 (p) => String(p.id) === String(participant._id)
-//               )
-//             );
-
-//             if (userRooms.length === 0) {
-//               return null; 
-//             }
-
-//             let unreadCount = {};
-
-//             for (const room of userRooms) {
-//               const excludedUsers = await User.find({
-//                 deletedAt: { $ne: null },
-//               }).lean();
-//               const excludedUserIds = excludedUsers.map((user) =>
-//                 String(user._id)
-//               );
-
-//               // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
-//               if (excludedUserIds.includes(String(room.roomId))) {
-//                 continue;
-//               }
-//               const roomUnreadCount = await Chat.countDocuments({
-//                 roomId: room.roomId,
-//                 readBy: { $ne: participant._id },
-//               });
-
-//               unreadCount[room.roomId] = roomUnreadCount;
-//             }
-
-//             const totalUnreadCount = Object.values(unreadCount).reduce(
-//               (acc, count) => acc + count,
-//               0
-//             );
-
-//            console.log(
-//               `Total Unread Count for ${participant._id}:`,
-//               totalUnreadCount
-//             );
-
-//             return {
-//               userId: participant._id,
-//               unreadCount,
-//               totalUnreadCount,
-//             };
-//           })
-//         );
-
-//         // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
-//         const totalfilteredUsers = usersWithUnreadCounts.filter(
-//           (user) => user !== null
-//         );
-//         console.log("รวม:", totalfilteredUsers);
-//         io.emit("TotalUnreadCounts", totalfilteredUsers);
-
-//         res.json({
-//           success: true,
-//           message: "Chat message with image saved",
-//           newChat,
-//           imageUrl, 
-//           imageName: originalFileName,
-//           fileSize,
-//           roomId,
-//           readBy: [senderId],
-//         });
-//       });
-
-//       fileStream.end(req.file.buffer);
-//     } else {
-//       // กรณีไม่มีไฟล์
-//       newChat = new Chat({
-//         message,
-//         sender: sender._id,
-//         senderModel,
-//         roomId,
-//         readBy: [senderId],
-//       });
-
-//       await newChat.save();
-//       await newChat.populate("sender", "name surname");
-
-//       io.to(roomId).emit("receiveMessage", newChat);
-
-//       const updatedUsers = await User.find(
-//         { deletedAt: null },
-//         "name surname username"
-//       ).lean();
-
-//       const updatedMPersonnel = await MPersonnel.find(
-//         { deletedAt: null },
-//         "name surname username"
-//       ).lean();
-
-//       const rooms = await Room.find({
-//         "participants.id": { $in: updatedUsers.map((user) => user._id) },
-//       }).lean();
-
-//       const usersWithChats = await Promise.all(
-//         updatedUsers.map(async (user) => {
-//           const userRooms = rooms.filter((room) =>
-//             room.participants.some((p) => String(p.id) === String(user._id))
-//           );
-
-//           if (userRooms.length === 0) {
-//             return null;
-//           }
-
-//           let latestChat = null;
-//           let unreadCount = {};
-
-//           for (const room of userRooms) {
-//             // ดึงแชทล่าสุดในห้อง
-//             const roomLatestChat = await Chat.findOne({ roomId: room.roomId })
-//               .sort({ createdAt: -1 })
-//               .populate("sender", "name surname")
-//               .lean();
-
-//             if (roomLatestChat) {
-//               if (
-//                 !latestChat ||
-//                 new Date(roomLatestChat.createdAt) >
-//                   new Date(latestChat.createdAt)
-//               ) {
-//                 latestChat = {
-//                   message: roomLatestChat.message,
-//                   file: roomLatestChat.image,
-//                   senderId: roomLatestChat.sender._id,
-//                   senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
-//                   createdAt: roomLatestChat.createdAt,
-//                 };
-//               }
-//             }
-
-//             // ดึงจำนวนข้อความที่ยังไม่ได้อ่านสำหรับทุก participants ในห้องนี้
-//             for (const participant of room.participants) {
-//               const unreadCounts = await Chat.countDocuments({
-//                 roomId: room.roomId,
-//                 readBy: { $ne: participant.id }, // ตรวจสอบว่าใครยังไม่ได้อ่าน
-//               });
-
-//               unreadCount[participant.id] = unreadCounts;
-//             }
-//           }
-
-//           return {
-//             _id: user._id,
-//             name: user.name,
-//             surname: user.surname,
-//             username: user.username,
-//             latestChat,
-//             unreadCount,
-//           };
-//         })
-//       );
-//       const filteredUsers = usersWithChats.filter((user) => user !== null);
-
-//       io.emit("usersUpdated", filteredUsers);
-
-//       // รวม User และ MPersonnel
-//       const allParticipants = [...updatedUsers, ...updatedMPersonnel];
-
-//       // ดึงข้อมูลห้องทั้งหมดที่ผู้ใช้และ MPersonnel เป็นสมาชิก
-//       const totalrooms = await Room.find({
-//         "participants.id": {
-//           $in: allParticipants.map((participant) => participant._id),
-//         },
-//       }).lean();
-
-//       // คำนวณ unread count สำหรับแต่ละผู้ใช้ในห้องนี้
-//       const usersWithUnreadCounts = await Promise.all(
-//         allParticipants.map(async (participant) => {
-//           // หาห้องที่ผู้ใช้อยู่
-//           const userRooms = totalrooms.filter((room) =>
-//             room.participants.some(
-//               (p) => String(p.id) === String(participant._id)
-//             )
-//           );
-
-//           if (userRooms.length === 0) {
-//             return null; // ถ้าผู้ใช้ไม่ได้อยู่ในห้องใดๆ ให้ข้ามไป
-//           }
-
-//           let unreadCount = {};
-
-//           // คำนวณ unread count สำหรับแต่ละห้องที่ผู้ใช้เป็นสมาชิก
-//           for (const room of userRooms) {
-//             const excludedUsers = await User.find({
-//               deletedAt: { $ne: null },
-//             }).lean();
-//             const excludedUserIds = excludedUsers.map((user) =>
-//               String(user._id)
-//             );
-
-//             // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
-//             if (excludedUserIds.includes(String(room.roomId))) {
-//               continue;
-//             }
-
-//             const roomUnreadCount = await Chat.countDocuments({
-//               roomId: room.roomId,
-//               readBy: { $ne: participant._id }, // ตรวจสอบว่าแชทที่ยังไม่ได้อ่าน
-//             });
-
-//             unreadCount[room.roomId] = roomUnreadCount;
-//           }
-
-//           // คำนวณ total unread count สำหรับผู้ใช้
-//           const totalUnreadCount = Object.values(unreadCount).reduce(
-//             (acc, count) => acc + count,
-//             0
-//           );
-
-//           console.log(
-//             `📦 Total Unread Count for ${participant._id}:`,
-//             totalUnreadCount
-//           );
-
-//           return {
-//             userId: participant._id,
-//             unreadCount,
-//             totalUnreadCount,
-//           };
-//         })
-//       );
-
-//       // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
-//       const totalfilteredUsers = usersWithUnreadCounts.filter(
-//         (user) => user !== null
-//       );
-//       console.log("รวม:", totalfilteredUsers);
-//       io.emit("TotalUnreadCounts", totalfilteredUsers);
-
-//       res.json({ success: true, message: "Chat message saved", newChat });
-//     }
-//   } catch (error) {
-//     console.error("Error saving chat message:", error);
-//     res
-//       .status(500)
-//       .json({ success: false, message: "Error saving chat message" });
-//   }
-// });
-
-// //เร็วแต่ไม่มีแชทล่าสุด
-// app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
-//   try {
-//     const { message, roomId, senderId, senderModel } = req.body;
-    
-//     if (message.length > 10000) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Message exceeds the maximum length of 10000 characters.",
-//       });
-//     }
-
-//     // ดึงข้อมูลผู้ส่ง
-//     const sender = senderModel === "User" 
-//       ? await User.findById(senderId) 
-//       : await MPersonnel.findById(senderId);
-
-//     if (!sender) {
-//       return res.status(404).json({ success: false, message: "User not found" });
-//     }
-
-//     let newChat;
-//     let imageUrl = null, imageName = null, fileSize = null;
-
-//     // หากมีการอัปโหลดไฟล์
-//     if (req.file) {
-//       const bucket = admin.storage().bucket();
-//       const fileName = `${Date.now()}_${req.file.originalname}`;
-//       const file = bucket.file(fileName);
-
-//       // อัปโหลดโดยตรง
-//       await file.save(req.file.buffer, {
-//         metadata: { contentType: req.file.mimetype },
-//       });
-
-//       const [metadata] = await file.getMetadata();
-//       fileSize = metadata.size;
-//       imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
-//       imageName = req.file.originalname;
-//     }
-
-//     // บันทึกแชทลงฐานข้อมูล
-//     newChat = new Chat({
-//       message,
-//       image: imageUrl,
-//       imageName,
-//       sender: sender._id,
-//       senderModel,
-//       roomId,
-//       fileSize,
-//       readBy: [senderId],
-//     });
-
-//     await newChat.save();
-//     await newChat.populate("sender", "name surname");
-
-//     // ส่งข้อความแบบเรียลไทม์
-//     io.to(roomId).emit("receiveMessage", newChat);
-
-//     // ดึงข้อมูลผู้ใช้และ MPersonnel
-//     const [updatedUsers, updatedMPersonnel] = await Promise.all([
-//       User.find({ deletedAt: null }, "name surname username").lean(),
-//       MPersonnel.find({ deletedAt: null }, "name surname username").lean(),
-//     ]);
-
-//     // ดึงห้องแชทที่ผู้ใช้เกี่ยวข้อง
-//     const participantIds = [...updatedUsers, ...updatedMPersonnel].map(p => p._id);
-//     const rooms = await Room.find({ "participants.id": { $in: participantIds } }).lean();
-
-//     // คำนวณ unread count
-//     const usersWithUnreadCounts = await Promise.allSettled(participantIds.map(async participantId => {
-//       const userRooms = rooms.filter(room => room.participants.some(p => String(p.id) === String(participantId)));
-//       if (userRooms.length === 0) return null;
-
-//       let unreadCount = {};
-//       for (const room of userRooms) {
-//         unreadCount[room.roomId] = await Chat.countDocuments({
-//           roomId: room.roomId,
-//           readBy: { $ne: participantId },
-//         });
-//       }
-
-//       return { userId: participantId, unreadCount, totalUnreadCount: Object.values(unreadCount).reduce((acc, count) => acc + count, 0) };
-//     }));
-
-//     // กรองเฉพาะผู้ใช้ที่มีข้อมูล
-//     const totalfilteredUsers = usersWithUnreadCounts.filter(r => r.status === "fulfilled").map(r => r.value);
-//     io.emit("TotalUnreadCounts", totalfilteredUsers);
-
-//     res.json({
-//       success: true,
-//       message: "Chat message saved",
-//       newChat,
-//       imageUrl,
-//       imageName,
-//       fileSize,
-//       roomId,
-//       readBy: [senderId],
-//     });
-
-//   } catch (error) {
-//     console.error("Error saving chat message:", error);
-//     res.status(500).json({ success: false, message: "Error saving chat message" });
-//   }
-// });
 app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
   try {
     const { message, roomId, senderId, senderModel } = req.body;
-    
+
+    // ตรวจสอบข้อความ
     if (message.length > 10000) {
       return res.status(400).json({
         success: false,
@@ -5310,31 +4879,19 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    let newChat;
+    // สร้างตัวแปรสำหรับไฟล์
     let imageUrl = null, imageName = null, fileSize = null;
-    
-    // หากมีการอัปโหลดไฟล์
-    if (req.file) {
-      const bucket = admin.storage().bucket();
-      const fileName = `${Date.now()}_${req.file.originalname}`;
-      const file = bucket.file(fileName);
-      const originalFileName = Buffer.from(
-        req.file.originalname,
-        "latin1"
-      ).toString("utf8");
-      // อัปโหลดโดยตรง
-      await file.save(req.file.buffer, {
-        metadata: { contentType: req.file.mimetype },
-      });
 
-      const [metadata] = await file.getMetadata();
-      fileSize = metadata.size;
-      imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
-      imageName = originalFileName; 
+    // อัปโหลดไฟล์หากมี
+    if (req.file) {
+      const { imageUrl: fileImageUrl, imageName: fileImageName, fileSize: uploadedFileSize } = await uploadFile(req.file);
+      imageUrl = fileImageUrl;
+      imageName = fileImageName;
+      fileSize = uploadedFileSize;
     }
 
-    // บันทึกแชทลงฐานข้อมูล
-    newChat = new Chat({
+    // สร้างข้อความแชทใหม่
+    const newChat = new Chat({
       message,
       image: imageUrl,
       imageName,
@@ -5348,72 +4905,11 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
     await newChat.save();
     await newChat.populate("sender", "name surname");
 
-    // ส่งข้อความแบบเรียลไทม์
+    // กระจายข้อความแบบเรียลไทม์
     io.to(roomId).emit("receiveMessage", newChat);
 
-    // ดึงข้อมูลผู้ใช้และ MPersonnel
-    const [updatedUsers, updatedMPersonnel] = await Promise.all([
-      User.find({ deletedAt: null }, "name surname username").lean(),
-      MPersonnel.find({ deletedAt: null }, "name surname username").lean(),
-    ]);
-
-    // ดึงห้องแชทที่ผู้ใช้เกี่ยวข้อง
-    const participantIds = [...updatedUsers, ...updatedMPersonnel].map(p => p._id);
-    const rooms = await Room.find({ "participants.id": { $in: participantIds } }).lean();
-
-    // อัปเดตข้อมูลผู้ใช้ที่มีแชท
-    const usersWithChats = await Promise.allSettled(updatedUsers.map(async user => {
-      const userRooms = rooms.filter(room => room.participants.some(p => String(p.id) === String(user._id)));
-      if (userRooms.length === 0) return null;
-
-      let latestChat = null;
-      let unreadCount = {};
-
-      for (const room of userRooms) {
-        const roomLatestChat = await Chat.findOne({ roomId: room.roomId }).sort({ createdAt: -1 }).populate("sender", "name surname").lean();
-        if (roomLatestChat) {
-          if (!latestChat || new Date(roomLatestChat.createdAt) > new Date(latestChat.createdAt)) {
-            latestChat = {
-              message: roomLatestChat.message,
-              file: roomLatestChat.image,
-              senderId: roomLatestChat.sender._id,
-              senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
-              createdAt: roomLatestChat.createdAt,
-            };
-          }
-        }
-
-        for (const participant of room.participants) {
-          const unreadCounts = await Chat.countDocuments({
-            roomId: room.roomId,
-            readBy: { $ne: participant.id }, // ตรวจสอบว่าใครยังไม่ได้อ่าน
-          });
-
-          unreadCount[participant.id] = unreadCounts;
-        }      
-      }
-
-      return { _id: user._id, name: user.name, surname: user.surname, latestChat, unreadCount };
-    }));
-
-    const filteredUsers = usersWithChats.filter(r => r.status === "fulfilled").map(r => r.value);
-    io.emit("usersUpdated", filteredUsers); // ✅ เพิ่มกลับมาแล้ว!
-
-    // คำนวณ unread count
-    const usersWithUnreadCounts = await Promise.allSettled(participantIds.map(async participantId => {
-      const userRooms = rooms.filter(room => room.participants.some(p => String(p.id) === String(participantId)));
-      if (userRooms.length === 0) return null;
-
-      let unreadCount = {};
-      for (const room of userRooms) {
-        unreadCount[room.roomId] = await Chat.countDocuments({ roomId: room.roomId, readBy: { $ne: participantId } });
-      }
-
-      return { userId: participantId, unreadCount, totalUnreadCount: Object.values(unreadCount).reduce((acc, count) => acc + count, 0) };
-    }));
-
-    const totalfilteredUsers = usersWithUnreadCounts.filter(r => r.status === "fulfilled").map(r => r.value);
-    io.emit("TotalUnreadCounts", totalfilteredUsers);
+    // อัปเดตผู้ใช้ที่เกี่ยวข้อง
+    await updateUserChatsAndUnreadCounts();
 
     res.json({
       success: true,
@@ -5432,6 +4928,131 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
   }
 });
 
+// ฟังก์ชันอัปโหลดไฟล์
+const uploadFile = async (file) => {
+  const bucket = admin.storage().bucket();
+  const fileName = `${Date.now()}_${file.originalname}`;
+  const fileObj = bucket.file(fileName);
+  const originalFileName = Buffer.from(file.originalname, "latin1").toString("utf8");
+
+  // อัปโหลดไฟล์ไปที่ Firebase
+  await fileObj.save(file.buffer, {
+    metadata: { contentType: file.mimetype },
+  });
+
+  const [metadata] = await fileObj.getMetadata();
+  const fileSize = metadata.size;
+  const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+
+  return { imageUrl, imageName: originalFileName, fileSize };
+};
+
+// ฟังก์ชันอัปเดตผู้ใช้ที่เกี่ยวข้องและจำนวนข้อความที่ยังไม่ได้อ่าน
+const updateUserChatsAndUnreadCounts = async () => {
+  try {
+    // ดึงข้อมูลผู้ใช้ทั้งหมด
+    const updatedUsers = await User.find({ deletedAt: null }, "name surname username").lean();
+    const updatedMPersonnel = await MPersonnel.find({ deletedAt: null }, "name surname username").lean();
+    const allParticipants = [...updatedUsers, ...updatedMPersonnel];
+
+    // ดึงห้องที่ผู้ใช้ทั้งหมดเข้าร่วม
+    const rooms = await Room.find({
+      "participants.id": { $in: allParticipants.map(participant => participant._id) },
+      $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }] 
+    }).lean();
+
+    // คำนวณ unreadCount และแชทล่าสุด
+    const usersWithChats = await Promise.all(updatedUsers.map(async (user) => {
+      const userRooms = rooms.filter((room) =>
+        room.participants.some((p) => String(p.id) === String(user._id))
+      );
+
+      if (userRooms.length === 0) return null;
+
+      let latestChat = null;
+      let unreadCount = {};
+
+      // ดึงแชทล่าสุดในแต่ละห้อง
+      const roomChats = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room.roomId) } } },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: "$roomId", latestChat: { $first: "$$ROOT" } } }
+      ]);
+
+      // Loop ทุก chat ที่ได้รับ
+      for (const chat of roomChats) {
+        // คำนวณ unread count สำหรับแต่ละ participant ในห้อง
+        for (const participant of userRooms.find(room => String(room.roomId) === String(chat._id)).participants) {
+          unreadCount[participant.id] = await Chat.countDocuments({
+            roomId: chat._id,
+            readBy: { $ne: participant.id }  // ตรวจสอบว่า participant ยังไม่ได้อ่าน
+          });
+        }
+
+        // หาข้อความล่าสุดในห้อง
+        if (!latestChat || new Date(chat.latestChat.createdAt) > new Date(latestChat.createdAt)) {
+         
+          const sender = await User.findById(chat.latestChat.sender._id) || await MPersonnel.findById(chat.latestChat.sender._id);
+
+          // หากไม่พบ sender
+          const senderName = sender ? `${sender.name || 'ไม่ทราบชื่อ'} ${sender.surname || 'ไม่ทราบนามสกุล'}` : 'ไม่ทราบชื่อ ไม่ทราบนามสกุล';
+          latestChat = {
+            message: chat.latestChat.message,
+            file: chat.latestChat.image,
+            senderId: chat.latestChat.sender._id,
+            senderName: senderName,            
+            createdAt: chat.latestChat.createdAt
+          };
+        }
+      }
+
+      return { _id: user._id, name: user.name, surname: user.surname, username: user.username, latestChat, unreadCount };
+    }));
+
+    const filteredUsers = usersWithChats.filter(user => user !== null);
+    console.log("รวมusersUpdated:", filteredUsers);
+    io.emit("usersUpdated", filteredUsers);
+
+    // คำนวณ totalUnreadCount สำหรับผู้ใช้ทั้งหมด
+    const usersWithUnreadCounts = await Promise.all(allParticipants.map(async (participant) => {
+      const userRooms = await Room.aggregate([
+        { $match: { "participants.id": participant._id, 
+          $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }]
+        } },
+        { $unwind: "$participants" },
+        { $match: { "participants.id": participant._id } },
+        { $group: { _id: "$roomId" } }
+      ]);
+
+      if (userRooms.length === 0) return null;
+
+      let unreadCount = {};
+
+      const unreadCounts = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room._id) }, 
+          readBy: { $ne: participant._id } } },
+        { $group: { _id: "$roomId", count: { $sum: 1 } } }
+      ]);
+
+      unreadCounts.forEach((item) => {
+        unreadCount[item._id] = item.count;
+      });
+
+      const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
+
+      return {
+        userId: participant._id,
+        unreadCount,
+        totalUnreadCount
+      };
+    }));
+    const totalfilteredUsers = usersWithUnreadCounts.filter(user => user !== null);
+    io.emit("TotalUnreadCounts", totalfilteredUsers);
+
+  } catch (error) {
+    console.error("Error updating user chats and unread counts:", error);
+  }
+};
 
 app.get("/getChatHistory/:roomId", async (req, res) => {
   try {
@@ -5459,76 +5080,59 @@ app.get("/getChatHistory/:roomId", async (req, res) => {
 
 app.get("/users", async (req, res) => {
   try {
-    const userId = req.query.senderId;
-    const updatedUsers = await User.find(
-      { deletedAt: null },
-      "name surname username"
-    ).lean();
+    const updatedUsers = await User.find({ deletedAt: null }, "name surname username").lean();
 
     const rooms = await Room.find({
       "participants.id": { $in: updatedUsers.map((user) => user._id) },
     }).lean();
 
-    const usersWithChats = await Promise.all(
-      updatedUsers.map(async (user) => {
+    // คำนวณ unreadCount และแชทล่าสุด
+    const usersWithChats = await Promise.all(updatedUsers.map(async (user) => {
+      const userRooms = rooms.filter((room) =>
+        room.participants.some((p) => String(p.id) === String(user._id))
+      );
 
-        if (!user) return null;
+      if (userRooms.length === 0) return null;
 
-        const userRooms = rooms.filter((room) =>
-          room.participants.some((p) => String(p.id) === String(user._id))
-        );
+      let latestChat = null;
+      let unreadCount = {};
 
-        if (userRooms.length === 0) {
-          return null;
+      // ดึงแชทล่าสุดในแต่ละห้อง
+      const roomChats = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room.roomId) } } },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: "$roomId", latestChat: { $first: "$$ROOT" } } }
+      ]);
+
+      // Loop ทุก chat ที่ได้รับ
+      for (const chat of roomChats) {
+        // คำนวณ unread count สำหรับแต่ละ participant ในห้อง
+        for (const participant of userRooms.find(room => String(room.roomId) === String(chat._id)).participants) {
+          unreadCount[participant.id] = await Chat.countDocuments({
+            roomId: chat._id,
+            readBy: { $ne: participant.id }  // ตรวจสอบว่า participant ยังไม่ได้อ่าน
+          });
         }
 
-        let latestChat = null;
-        let unreadCount = {};
+        // หาข้อความล่าสุดในห้อง
+        if (!latestChat || new Date(chat.latestChat.createdAt) > new Date(latestChat.createdAt)) {
+         
+          const sender = await User.findById(chat.latestChat.sender._id) || await MPersonnel.findById(chat.latestChat.sender._id);
 
-        for (const room of userRooms) {
-          // ดึงแชทล่าสุดในห้อง
-          const roomLatestChat = await Chat.findOne({ roomId: room.roomId })
-            .sort({ createdAt: -1 })
-            .populate("sender", "name")
-            .lean();
-
-          if (roomLatestChat) {
-            if (
-              !latestChat ||
-              new Date(roomLatestChat.createdAt) >
-                new Date(latestChat.createdAt)
-            ) {
-              latestChat = {
-                message: roomLatestChat.message,
-                file: roomLatestChat.image,
-                senderId: roomLatestChat.sender._id,
-                // senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
-                senderName: `${roomLatestChat.sender.name}`,
-                createdAt: roomLatestChat.createdAt,
-              };
-            }
-          }
-
-          for (const participant of room.participants) {
-            const unreadCounts = await Chat.countDocuments({
-              roomId: room.roomId,
-              readBy: { $ne: participant.id }, 
-            });
-
-            unreadCount[participant.id] = unreadCounts;
-          }
+          // หากไม่พบ sender
+          const senderName = sender ? `${sender.name || 'ไม่ทราบชื่อ'} ${sender.surname || 'ไม่ทราบนามสกุล'}` : 'ไม่ทราบชื่อ ไม่ทราบนามสกุล';
+          latestChat = {
+            message: chat.latestChat.message,
+            file: chat.latestChat.image,
+            senderId: chat.latestChat.sender._id,
+            senderName: senderName,            
+            createdAt: chat.latestChat.createdAt
+          };
         }
+      }
 
-        return {
-          _id: user._id,
-          name: user.name,
-          surname: user.surname,
-          username: user.username,
-          latestChat,
-          unreadCount,
-        };
-      })
-    );
+      return { _id: user._id, name: user.name, surname: user.surname, username: user.username, latestChat, unreadCount };
+    }));
     const filteredUsers = usersWithChats.filter((user) => user !== null);
     console.log("📦 Filtered Users with Chats777:", filteredUsers);
     res.json({ success: true, users: filteredUsers });
@@ -5545,74 +5149,48 @@ app.get("/users", async (req, res) => {
 app.get("/update-unread-count", async (req, res) => {
   try {
 
-    // ดึงข้อมูลผู้ใช้ที่ไม่ถูกลบ
-    const updatedUsers = await User.find(
-      { deletedAt: null },
-      "name surname username"
-    ).lean();
-
-    // ดึงข้อมูล MPersonnel
-    const updatedMPersonnel = await MPersonnel.find(
-      { deletedAt: null },
-      "name surname username"
-    ).lean();
-
-    // รวม User และ MPersonnel
+    const updatedUsers = await User.find({ deletedAt: null }, "name surname username").lean();
+    const updatedMPersonnel = await MPersonnel.find({ deletedAt: null }, "name surname username").lean();
     const allParticipants = [...updatedUsers, ...updatedMPersonnel];
 
-    // ดึงข้อมูลห้องทั้งหมดที่ผู้ใช้และ MPersonnel เป็นสมาชิก
     const rooms = await Room.find({
-      "participants.id": { $in: allParticipants.map((participant) => participant._id) },
+      "participants.id": { $in: allParticipants.map(participant => participant._id) },
+      $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }] 
     }).lean();
 
-    // คำนวณ unread count สำหรับแต่ละผู้ใช้ในห้องนี้
-    const usersWithUnreadCounts = await Promise.all(
-      allParticipants.map(async (participant) => {
-        // หาห้องที่ผู้ใช้อยู่
-        const userRooms = rooms.filter((room) =>
-          room.participants.some((p) => String(p.id) === String(participant._id))
-        );
 
-        if (userRooms.length === 0) {
-          return null;  // ถ้าผู้ใช้ไม่ได้อยู่ในห้องใดๆ ให้ข้ามไป
-        }
+    const usersWithUnreadCounts = await Promise.all(allParticipants.map(async (participant) => {
+      const userRooms = await Room.aggregate([
+        { $match: { "participants.id": participant._id, 
+          $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }]
+        } },
+        { $unwind: "$participants" },
+        { $match: { "participants.id": participant._id } },
+        { $group: { _id: "$roomId" } }
+      ]);
 
-        let unreadCount = {};
+      if (userRooms.length === 0) return null;
 
-        // คำนวณ unread count สำหรับแต่ละห้องที่ผู้ใช้เป็นสมาชิก
-        for (const room of userRooms) {
+      let unreadCount = {};
 
-          const excludedUsers = await User.find({ deletedAt: { $ne: null } }).lean();
-          const excludedUserIds = excludedUsers.map((user) => String(user._id));
-    
-          // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
-          if (excludedUserIds.includes(String(room.roomId))) {
-            continue;
-          }
+      const unreadCounts = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room._id) }, 
+          readBy: { $ne: participant._id } } },
+        { $group: { _id: "$roomId", count: { $sum: 1 } } }
+      ]);
 
-          const roomUnreadCount = await Chat.countDocuments({
-            roomId: room.roomId,
-            readBy: { $ne: participant._id }, // ตรวจสอบว่าแชทที่ยังไม่ได้อ่าน
-          });
+      unreadCounts.forEach((item) => {
+        unreadCount[item._id] = item.count;
+      });
 
-          unreadCount[room.roomId] = roomUnreadCount;
-        }
+      const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
 
-        // คำนวณ total unread count สำหรับผู้ใช้
-        const totalUnreadCount = Object.values(unreadCount).reduce(
-          (acc, count) => acc + count,
-          0
-        );
-
-        console.log(`📦 Total Unread Count for ${participant._id}:`, totalUnreadCount);
-
-        return {
-          userId: participant._id,
-          unreadCount,
-          totalUnreadCount,
-        };
-      })
-    );
+      return {
+        userId: participant._id,
+        unreadCount,
+        totalUnreadCount
+      };
+    }));
 
     // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
     const filteredUsers = usersWithUnreadCounts.filter((user) => user !== null);
@@ -5653,104 +5231,6 @@ app.get('/getMPersonnelList', async (req, res) => {
   }
 });
 
-// ----------------
-
-app.get('/alluserchat', async (req, res) => {
-  try {
-    const userId = req.query.userId;
-    const users = await User.find({ deletedAt: null }).lean();
-
-    const usersWithLastMessage = await Promise.all(
-      users.map(async (user) => {
-        const lastMessage = await Chat.findOne({
-          $or: [{ sender: userId, recipient: user._id }, { sender: user._id, recipient: userId }],
-        })
-          .sort({ createdAt: -1 })
-          .select('message createdAt sender senderModel isRead recipient image')
-          .populate({
-            path: 'sender recipient',
-            select: 'name',
-          })
-          .lean();
-
-        const unreadCount = await Chat.countDocuments({
-          recipient: userId,
-          sender: user._id,
-          isRead: false,
-        });
-
-        return { ...user, lastMessage: lastMessage ? lastMessage : null, unreadCount };
-      })
-    );
-
-    res.json({ data: usersWithLastMessage });
-  } catch (error) {
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-app.get('/lastmessage/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const loginUserId = req.query.loginUserId;
-    const lastMessage = await Chat.findOne({
-      $or: [
-        { sender: userId, recipient: loginUserId },
-        { sender: loginUserId, recipient: userId }
-      ]
-    })
-      .sort({ createdAt: -1 })
-      .select('message createdAt sender senderModel isRead recipient image')
-      .populate({
-        path: 'sender recipient',
-        select: 'name',
-      })
-      .lean();
-
-    res.json({ lastMessage: lastMessage ? lastMessage : null });
-  } catch (error) {
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-
-//รายชื่อ chat หมอ ที่ฝั่งผู้ป่วย
-app.get("/allMpersonnelchat1", async (req, res) => {
-  try {
-    const userId = req.query.userId;
-    const allMpersonnel = await MPersonnel.find({}).lean();
-
-    const usersWithLastMessage = await Promise.all(
-      allMpersonnel.map(async (user) => {
-        const lastMessage = await Chat.findOne({
-          $or: [{ sender: userId, recipient: user._id }, { sender: user._id, recipient: userId }],
-        })
-          .sort({ createdAt: -1 })
-          .select('message createdAt sender senderModel isRead recipient image')
-          .populate({
-            path: 'sender recipient',
-            select: 'name',
-          })
-          .lean();
-
-        const unreadCount = await Chat.countDocuments({
-          recipient: userId,
-          sender: user._id,
-          isRead: false,
-        });
-
-        return { ...user, lastMessage: lastMessage ? lastMessage : null, unreadCount };
-      })
-    );
-
-    res.json({ data: usersWithLastMessage });
-  } catch (error) {
-    console.error("Error in /allMpersonnelchat1 endpoint:", error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// --------------------------------
 
 //แดชบอร์ด
 app.get("/diagnosis-count", async (req, res) => {

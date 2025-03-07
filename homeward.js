@@ -375,6 +375,7 @@ mongoose.model('Chat', chatSchema);
 
 const RoomSchema = new mongoose.Schema({
   roomId: mongoose.Schema.Types.ObjectId,
+  deletedAt: { type: Date, default: null },
   participants: [
     {
       id: mongoose.Schema.Types.ObjectId,

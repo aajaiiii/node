@@ -11,14 +11,14 @@ var nodemailer = require("nodemailer");
 const randomstring = require("randomstring");
 const slugify = require("slugify");
 const cors = require("cors");
-require('dotenv').config();
+require("dotenv").config();
 const { google } = require("googleapis");
-const axios = require('axios');
-const crypto = require('crypto');
+const axios = require("axios");
+const crypto = require("crypto");
 const refreshTokens = [];
-const session = require('express-session');
-const http = require('http');
-const socketIo = require('socket.io');
+const session = require("express-session");
+const http = require("http");
+const socketIo = require("socket.io");
 const server = http.createServer(app);
 const cron = require("node-cron");
 const io = socketIo(server, {
@@ -28,42 +28,46 @@ const io = socketIo(server, {
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type"],
     credentials: true,
-  }
+  },
 });
 app.use(cors());
-const admin = require('firebase-admin');
+const admin = require("firebase-admin");
 // const serviceAccount = require('./sdk/homeward-422311-firebase-adminsdk-sd9ly-3a629477d2.json');
-const multerr = require('multer');
+const multerr = require("multer");
 const uploadimg = multerr({ storage: multerr.memoryStorage() });
 admin.initializeApp({
   credential: admin.credential.cert({
     type: process.env.FIREBASE_TYPE,
     project_id: process.env.FIREBASE_PROJECT_ID,
     private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-    private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
     client_email: process.env.FIREBASE_CLIENT_EMAIL,
     client_id: process.env.FIREBASE_CLIENT_ID,
     auth_uri: process.env.FIREBASE_AUTH_URI,
     token_uri: process.env.FIREBASE_TOKEN_URI,
-    auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
-    client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
+    auth_provider_x509_cert_url:
+      process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
+    client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
   }),
-  storageBucket: 'gs://homeward-422311.appspot.com'
+  storageBucket: "gs://homeward-422311.appspot.com",
 });
-const JWT_REFRESH_SECRET = 'hvdvay6ert72eerr839289()aiyg8t87qt724tyty393293883uhefiuh78ttq3ifi78272jbkj?[]]pou89ywe';
+const JWT_REFRESH_SECRET =
+  "hvdvay6ert72eerr839289()aiyg8t87qt724tyty393293883uhefiuh78ttq3ifi78272jbkj?[]]pou89ywe";
 
 const JWT_SECRET =
   "hvdvay6ert72839289()aiyg8t87qt72393293883uhefiuh78ttq3ifi78272jbkj?[]]pou89ywe";
 
-
 const mongoUrl =
   "mongodb+srv://sasithornsorn:Sasi12345678@cluster0.faewtst.mongodb.net/?retryWrites=true&w=majority";
 
-  app.use(session({
-    secret: '127iluvuhokdkiijijijiejfiejfiejfiopoq/*-/+4554#@@!&&*(((()))))))((**&^&',  // เปลี่ยนเป็นคีย์ที่ปลอดภัย
+app.use(
+  session({
+    secret:
+      "127iluvuhokdkiijijijiejfiejfiejfiopoq/*-/+4554#@@!&&*(((()))))))((**&^&", // เปลี่ยนเป็นคีย์ที่ปลอดภัย
     resave: false,
     saveUninitialized: true,
-  }));
+  })
+);
 
 mongoose
   .connect(mongoUrl, {
@@ -92,14 +96,14 @@ const PatientForm = mongoose.model("PatientForm");
 const Assessment = mongoose.model("Assessment");
 const Chat = mongoose.model("Chat");
 const Alert = mongoose.model("Alert");
-const UserThreshold = mongoose.model("UserThreshold")
-const ReadinessForm = mongoose.model("ReadinessForm")
-const ReadinessAssessment = mongoose.model("ReadinessAssessment")
-const OTPModel = mongoose.model("OTPModel")
-const OTPModelUser = mongoose.model("OTPModelUser")
-const Assessinhomesss = mongoose.model("Assessinhomesss")
-const Agenda = mongoose.model("Agenda")
-const DefaultThreshold = mongoose.model("DefaultThreshold")
+const UserThreshold = mongoose.model("UserThreshold");
+const ReadinessForm = mongoose.model("ReadinessForm");
+const ReadinessAssessment = mongoose.model("ReadinessAssessment");
+const OTPModel = mongoose.model("OTPModel");
+const OTPModelUser = mongoose.model("OTPModelUser");
+const Assessinhomesss = mongoose.model("Assessinhomesss");
+const Agenda = mongoose.model("Agenda");
+const DefaultThreshold = mongoose.model("DefaultThreshold");
 const Room = mongoose.model("Room");
 
 //ลบข้อมูล user ที่เกิน 30 วัน ทุก เที่ยงคืน
@@ -116,7 +120,8 @@ cron.schedule("0 0 * * *", async () => {
 
 app.post("/addadmin", async (req, res) => {
   console.log("✅ บัญชีถูกสร้างแล้ว เตรียมส่งอีเมล...");
-  const { username, name, surname, email, password, confirmPassword } = req.body;
+  const { username, name, surname, email, password, confirmPassword } =
+    req.body;
 
   if (!username || !password || !email) {
     return res.json({ error: "กรุณากรอกชื่อผู้ใช้ รหัสผ่าน และอีเมล" });
@@ -129,25 +134,27 @@ app.post("/addadmin", async (req, res) => {
   const encryptedPassword = await bcrypt.hash(password, 10);
 
   try {
-    const oldUser = await Admins.findOne({ 
-      username: { $regex: `^${username}$`, $options: 'i' }
+    const oldUser = await Admins.findOne({
+      username: { $regex: `^${username}$`, $options: "i" },
     });
 
     if (oldUser) {
       return res.json({ error: "มีชื่อผู้ใช้นี้อยู่ในระบบแล้ว" });
     }
 
-  // ตรวจสอบว่าอีเมลถูกใช้งานแล้วและมีการยืนยันหรือไม่
-  const existingUser = await Admins.findOne({ email });
+    // ตรวจสอบว่าอีเมลถูกใช้งานแล้วและมีการยืนยันหรือไม่
+    const existingUser = await Admins.findOne({ email });
 
-  if (existingUser) {
-    if (existingUser.isEmailVerified) {
-      // ถ้าอีเมลถูกยืนยันแล้ว
-      return res.json({ error: "อีเมลนี้ถูกยืนยันแล้ว ไม่สามารถเพิ่มบัญชีใหม่ได้" });
+    if (existingUser) {
+      if (existingUser.isEmailVerified) {
+        // ถ้าอีเมลถูกยืนยันแล้ว
+        return res.json({
+          error: "อีเมลนี้ถูกยืนยันแล้ว ไม่สามารถเพิ่มบัญชีใหม่ได้",
+        });
+      }
+      // ถ้ายังไม่ได้ยืนยันอีเมล
+      return res.json({ error: "อีเมลนี้ถูกใช้งานแล้วแต่ยังไม่ได้ยืนยัน" });
     }
-    // ถ้ายังไม่ได้ยืนยันอีเมล
-    return res.json({ error: "อีเมลนี้ถูกใช้งานแล้วแต่ยังไม่ได้ยืนยัน" });
-  }
     await Admins.create({
       username,
       name,
@@ -158,7 +165,10 @@ app.post("/addadmin", async (req, res) => {
 
     console.log("บัญชีถูกสร้างแล้ว เตรียมส่งอีเมล...");
     console.log("Email User:", process.env.EMAIL_USER);
-    console.log("Email Pass:", process.env.EMAIL_PASS ? "******" : "ไม่มีค่ารหัสผ่าน");
+    console.log(
+      "Email Pass:",
+      process.env.EMAIL_PASS ? "******" : "ไม่มีค่ารหัสผ่าน"
+    );
 
     const transporter = nodemailer.createTransport({
       service: "Gmail",
@@ -204,7 +214,6 @@ app.post("/addadmin", async (req, res) => {
         </html>
       `,
     };
-    
 
     // ส่งอีเมล
     const info = await transporter.sendMail(mailOptions);
@@ -217,19 +226,19 @@ app.post("/addadmin", async (req, res) => {
   }
 });
 
-app.post('/send-otp1', async (req, res) => {
+app.post("/send-otp1", async (req, res) => {
   try {
     const { username, email } = req.body;
 
     // ตรวจสอบว่ามีอีเมลหรือไม่
     if (!username || !email) {
-      return res.status(400).json({ error: 'กรุณากรอก username และอีเมล' });
+      return res.status(400).json({ error: "กรุณากรอก username และอีเมล" });
     }
 
     // ตรวจสอบว่าอีเมลที่ส่งมามีการยืนยันแล้วหรือไม่
-    const existingUser = await mongoose.model('Admin').findOne({ email });
+    const existingUser = await mongoose.model("Admin").findOne({ email });
     if (existingUser && existingUser.isEmailVerified) {
-      return res.status(400).json({ error: 'อีเมลนี้ได้รับการยืนยันแล้ว' });
+      return res.status(400).json({ error: "อีเมลนี้ได้รับการยืนยันแล้ว" });
     }
 
     // สร้าง OTP
@@ -238,7 +247,7 @@ app.post('/send-otp1', async (req, res) => {
 
     // ตั้งค่าการส่งอีเมล
     const transporter = nodemailer.createTransport({
-      service: 'Gmail',
+      service: "Gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -248,69 +257,79 @@ app.post('/send-otp1', async (req, res) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Homeward: รหัส OTP สำหรับยืนยันตัวตน',
+      subject: "Homeward: รหัส OTP สำหรับยืนยันตัวตน",
       text: `เรียนคุณ ${username} รหัส OTP ของคุณคือ ${otp}\n\nรหัสมีอายุ 5 นาที อย่าเปิดเผยรหัสนี้กับผู้อื่น`,
     };
 
     // ส่งอีเมล
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
-        console.error('Error sending mail:', error);
-        return res.status(500).json({ error: 'Error sending OTP' });
+        console.error("Error sending mail:", error);
+        return res.status(500).json({ error: "Error sending OTP" });
       }
-      res.status(200).json({ success: true, message: 'OTP sent' });
+      res.status(200).json({ success: true, message: "OTP sent" });
     });
   } catch (error) {
-    console.error('Error during OTP creation:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error("Error during OTP creation:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-
-app.post('/verify-otp1', async (req, res) => {
+app.post("/verify-otp1", async (req, res) => {
   try {
     const { username, otp, newEmail } = req.body;
 
-    const otpRecord = await OTPModel.findOne({ username }).sort({ createdAt: -1 });
+    const otpRecord = await OTPModel.findOne({ username }).sort({
+      createdAt: -1,
+    });
 
     if (!otpRecord) {
-      return res.status(400).json({ error: 'OTP not found' });
+      return res.status(400).json({ error: "OTP not found" });
     }
 
-    const isOtpValid = otpRecord.otp === otp && Date.now() - otpRecord.createdAt < 10 * 60 * 1000;
+    const isOtpValid =
+      otpRecord.otp === otp &&
+      Date.now() - otpRecord.createdAt < 10 * 60 * 1000;
 
     if (!isOtpValid) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
+      return res.status(400).json({ error: "Invalid or expired OTP" });
     }
 
     // อัปเดตสถานะการยืนยันอีเมลและอีเมลของผู้ใช้ โดยใช้ username แทน email
-    await Admins.updateOne({ username }, { $set: { isEmailVerified: true, email: newEmail } });
+    await Admins.updateOne(
+      { username },
+      { $set: { isEmailVerified: true, email: newEmail } }
+    );
 
     // ลบ OTP หลังจากการยืนยันเสร็จสมบูรณ์
     await OTPModel.deleteMany({ username });
 
-    res.status(200).json({ success: true, message: 'Email verified and updated successfully' });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Email verified and updated successfully",
+      });
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 // ยืนยัน/เปลี่ยนอีเมล แพทย์
-app.post('/send-otp2', async (req, res) => {
+app.post("/send-otp2", async (req, res) => {
   try {
     const { username, email } = req.body;
 
     // ตรวจสอบว่ามีอีเมลหรือไม่
     if (!username || !email) {
-      return res.status(400).json({ error: 'กรุณากรอก username และอีเมล' });
+      return res.status(400).json({ error: "กรุณากรอก username และอีเมล" });
     }
 
     // ตรวจสอบว่าอีเมลที่ส่งมามีการยืนยันแล้วหรือไม่
-    const existingUser = await mongoose.model('MPersonnel').findOne({ email });
+    const existingUser = await mongoose.model("MPersonnel").findOne({ email });
     if (existingUser && existingUser.isEmailVerified) {
-      return res.status(400).json({ error: 'อีเมลนี้ได้รับการยืนยันแล้ว' });
+      return res.status(400).json({ error: "อีเมลนี้ได้รับการยืนยันแล้ว" });
     }
 
     // สร้าง OTP
@@ -319,7 +338,7 @@ app.post('/send-otp2', async (req, res) => {
 
     // ตั้งค่าการส่งอีเมล
     const transporter = nodemailer.createTransport({
-      service: 'Gmail',
+      service: "Gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -329,69 +348,79 @@ app.post('/send-otp2', async (req, res) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Homeward: รหัส OTP สำหรับยืนยันตัวตน',
+      subject: "Homeward: รหัส OTP สำหรับยืนยันตัวตน",
       text: `เรียนคุณ ${username} รหัส OTP ของคุณคือ ${otp}\n\nรหัสมีอายุ 5 นาที อย่าเปิดเผยรหัสนี้กับผู้อื่น`,
     };
 
     // ส่งอีเมล
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
-        console.error('Error sending mail:', error);
-        return res.status(500).json({ error: 'Error sending OTP' });
+        console.error("Error sending mail:", error);
+        return res.status(500).json({ error: "Error sending OTP" });
       }
-      res.status(200).json({ success: true, message: 'OTP sent' });
+      res.status(200).json({ success: true, message: "OTP sent" });
     });
   } catch (error) {
-    console.error('Error during OTP creation:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error("Error during OTP creation:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-
-app.post('/verify-otp2', async (req, res) => {
+app.post("/verify-otp2", async (req, res) => {
   try {
     const { username, otp, newEmail } = req.body;
 
-    const otpRecord = await OTPModel.findOne({ username }).sort({ createdAt: -1 });
+    const otpRecord = await OTPModel.findOne({ username }).sort({
+      createdAt: -1,
+    });
 
     if (!otpRecord) {
-      return res.status(400).json({ error: 'OTP not found' });
+      return res.status(400).json({ error: "OTP not found" });
     }
 
-    const isOtpValid = otpRecord.otp === otp && Date.now() - otpRecord.createdAt < 10 * 60 * 1000;
+    const isOtpValid =
+      otpRecord.otp === otp &&
+      Date.now() - otpRecord.createdAt < 10 * 60 * 1000;
 
     if (!isOtpValid) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
+      return res.status(400).json({ error: "Invalid or expired OTP" });
     }
 
     // อัปเดตสถานะการยืนยันอีเมลและอีเมลของผู้ใช้ โดยใช้ username แทน email
-    await MPersonnel.updateOne({ username }, { $set: { isEmailVerified: true, email: newEmail } });
+    await MPersonnel.updateOne(
+      { username },
+      { $set: { isEmailVerified: true, email: newEmail } }
+    );
 
     // ลบ OTP หลังจากการยืนยันเสร็จสมบูรณ์
     await OTPModel.deleteMany({ username });
 
-    res.status(200).json({ success: true, message: 'Email verified and updated successfully' });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Email verified and updated successfully",
+      });
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 // ยืนยัน/เปลี่ยนอีเมล ผู้ป่วย
-app.post('/send-otp3', async (req, res) => {
+app.post("/send-otp3", async (req, res) => {
   try {
     const { username, email } = req.body;
 
     // ตรวจสอบว่ามีอีเมลหรือไม่
     if (!username || !email) {
-      return res.status(400).json({ error: 'กรุณากรอก username และอีเมล' });
+      return res.status(400).json({ error: "กรุณากรอก username และอีเมล" });
     }
 
     // ตรวจสอบว่าอีเมลที่ส่งมามีการยืนยันแล้วหรือไม่
-    const existingUser = await mongoose.model('User').findOne({ email });
+    const existingUser = await mongoose.model("User").findOne({ email });
     if (existingUser && existingUser.isEmailVerified) {
-      return res.status(400).json({ error: 'อีเมลนี้ได้รับการยืนยันแล้ว' });
+      return res.status(400).json({ error: "อีเมลนี้ได้รับการยืนยันแล้ว" });
     }
 
     // สร้าง OTP
@@ -400,7 +429,7 @@ app.post('/send-otp3', async (req, res) => {
 
     // ตั้งค่าการส่งอีเมล
     const transporter = nodemailer.createTransport({
-      service: 'Gmail',
+      service: "Gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -410,51 +439,62 @@ app.post('/send-otp3', async (req, res) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Homeward: รหัส OTP สำหรับยืนยันตัวตน',
+      subject: "Homeward: รหัส OTP สำหรับยืนยันตัวตน",
       text: `เรียนคุณ ${username} รหัส OTP ของคุณคือ ${otp}\n\nรหัสมีอายุ 5 นาที อย่าเปิดเผยรหัสนี้กับผู้อื่น`,
     };
 
     // ส่งอีเมล
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
-        console.error('Error sending mail:', error);
-        return res.status(500).json({ error: 'Error sending OTP' });
+        console.error("Error sending mail:", error);
+        return res.status(500).json({ error: "Error sending OTP" });
       }
-      res.status(200).json({ success: true, message: 'OTP sent' });
+      res.status(200).json({ success: true, message: "OTP sent" });
     });
   } catch (error) {
-    console.error('Error during OTP creation:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error("Error during OTP creation:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-
-app.post('/verify-otp3', async (req, res) => {
+app.post("/verify-otp3", async (req, res) => {
   try {
     const { username, otp, newEmail } = req.body;
 
-    const otpRecord = await OTPModel.findOne({ username }).sort({ createdAt: -1 });
+    const otpRecord = await OTPModel.findOne({ username }).sort({
+      createdAt: -1,
+    });
 
     if (!otpRecord) {
-      return res.status(400).json({ error: 'OTP not found' });
+      return res.status(400).json({ error: "OTP not found" });
     }
 
-    const isOtpValid = otpRecord.otp === otp && Date.now() - otpRecord.createdAt < 10 * 60 * 1000;
+    const isOtpValid =
+      otpRecord.otp === otp &&
+      Date.now() - otpRecord.createdAt < 10 * 60 * 1000;
 
     if (!isOtpValid) {
-      return res.status(400).json({ error: 'OTP ไม่ถูกต้องหรือหมดอายุ' });
+      return res.status(400).json({ error: "OTP ไม่ถูกต้องหรือหมดอายุ" });
     }
 
     // อัปเดตสถานะการยืนยันอีเมลและอีเมลของผู้ใช้ โดยใช้ username แทน email
-    await User.updateOne({ username }, { $set: { isEmailVerified: true, email: newEmail } });
+    await User.updateOne(
+      { username },
+      { $set: { isEmailVerified: true, email: newEmail } }
+    );
 
     // ลบ OTP หลังจากการยืนยันเสร็จสมบูรณ์
     await OTPModel.deleteMany({ username });
 
-    res.status(200).json({ success: true, message: 'Email verified and updated successfully' });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Email verified and updated successfully",
+      });
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -467,7 +507,7 @@ app.post("/login", async (req, res) => {
   }
   if (await bcrypt.compare(password, user.password)) {
     const token = jwt.sign({ username: user.username }, JWT_SECRET, {
-      expiresIn: '7d',
+      expiresIn: "7d",
     });
 
     if (res.status(201)) {
@@ -478,7 +518,6 @@ app.post("/login", async (req, res) => {
   }
   res.json({ status: "error", error: "InvAlid Password" });
 });
-
 
 app.post("/forgot-password", async (req, res) => {
   const { email } = req.body;
@@ -517,12 +556,11 @@ app.post("/forgot-password", async (req, res) => {
       } else {
         console.log("Email sent: " + info.response);
         return res.status(200).json({ status: "check your emailbox" });
-
       }
     });
 
     console.log(link);
-  } catch (error) { }
+  } catch (error) {}
 });
 
 app.get("/reset-password/:id/:token", async (req, res) => {
@@ -592,7 +630,7 @@ app.get("/success", (req, res) => {
 
     res.render("success", { message: successMessage, email: email });
   } else {
-    res.redirect("/");  // ถ้าไม่พบข้อมูลใน session ก็รีไดเร็กต์ไปหน้าอื่น
+    res.redirect("/"); // ถ้าไม่พบข้อมูลใน session ก็รีไดเร็กต์ไปหน้าอื่น
   }
 });
 
@@ -661,11 +699,10 @@ app.post("/profile", async (req, res) => {
   }
 });
 
-
 app.post("/logout", (req, res) => {
   const refreshToken = req.cookies.refreshToken;
-  refreshTokens = refreshTokens.filter(token => token !== refreshToken);
-  res.clearCookie('refreshToken');
+  refreshTokens = refreshTokens.filter((token) => token !== refreshToken);
+  res.clearCookie("refreshToken");
   res.sendStatus(204);
 });
 
@@ -680,39 +717,43 @@ app.post("/logout", (req, res) => {
 //     res.status(500).json({ message: "Error checking equip name" });
 //   }
 // });
-app.post('/updateequip/:id', async (req, res) => {
+app.post("/updateequip/:id", async (req, res) => {
   const { id } = req.params;
   const { equipment_name, equipment_type } = req.body;
   try {
     const equipment = await Equipment.findById(id);
 
     if (!equipment) {
-      return res.status(404).json({ error: 'Equipment not found' });
+      return res.status(404).json({ error: "Equipment not found" });
     }
-    if (equipment.equipment_name.toLowerCase() !== equipment_name.toLowerCase()) {
-      const existingEquip = await Equipment.findOne({ 
-        equipment_name: { $regex: `^${equipment_name}$`, $options: 'i' } 
+    if (
+      equipment.equipment_name.toLowerCase() !== equipment_name.toLowerCase()
+    ) {
+      const existingEquip = await Equipment.findOne({
+        equipment_name: { $regex: `^${equipment_name}$`, $options: "i" },
       });
       if (existingEquip) {
-        return res.status(400).json({ error: 'ชื่ออุปกรณ์ซ้ำในระบบ กรุณาเปลี่ยนชื่อ' });
+        return res
+          .status(400)
+          .json({ error: "ชื่ออุปกรณ์ซ้ำในระบบ กรุณาเปลี่ยนชื่อ" });
       }
     }
     equipment.equipment_name = equipment_name;
     equipment.equipment_type = equipment_type;
     await equipment.save();
 
-    res.send({ status: 'ok', equipment });
+    res.send({ status: "ok", equipment });
   } catch (error) {
     console.error(error);
-    res.send({ status: 'error' });
+    res.send({ status: "error" });
   }
 });
 
 app.post("/addequip", async (req, res) => {
   const { equipment_name, equipment_type } = req.body;
   try {
-    const oldequipment = await Equipment.findOne({ 
-      equipment_name: { $regex: `^${equipment_name}$`, $options: 'i' } 
+    const oldequipment = await Equipment.findOne({
+      equipment_name: { $regex: `^${equipment_name}$`, $options: "i" },
     });
     if (oldequipment) {
       return res.json({ error: "Equipment Exists" });
@@ -738,9 +779,11 @@ app.post("/addequipuser", async (req, res) => {
     }
 
     const existingEquipments = await EquipmentUser.find({ user: userId });
-    const existingEquipNames = existingEquipments.map(equip => equip.equipmentname_forUser);
+    const existingEquipNames = existingEquipments.map(
+      (equip) => equip.equipmentname_forUser
+    );
 
-    const duplicateEquipments = equipments.filter(equip =>
+    const duplicateEquipments = equipments.filter((equip) =>
       existingEquipNames.includes(equip.equipmentname_forUser)
     );
 
@@ -821,14 +864,16 @@ app.post("/addmpersonnel", async (req, res) => {
 
     if (existingUser) {
       if (existingUser.isEmailVerified) {
-        return res.json({ error: "อีเมลนี้ถูกยืนยันแล้ว ไม่สามารถเพิ่มบัญชีใหม่ได้" });
+        return res.json({
+          error: "อีเมลนี้ถูกยืนยันแล้ว ไม่สามารถเพิ่มบัญชีใหม่ได้",
+        });
       }
       return res.json({ error: "อีเมลนี้ถูกใช้งานแล้วแต่ยังไม่ได้ยืนยัน" });
     }
 
     const newMPersonnel = await MPersonnel.create({
       username,
-      password: encryptedPassword, 
+      password: encryptedPassword,
       email,
       tel,
       nametitle,
@@ -836,44 +881,45 @@ app.post("/addmpersonnel", async (req, res) => {
       surname,
     });
 
+    const allUsers = await User.find({ deletedAt: null });
 
+    for (const user of allUsers) {
+      const room = await Room.findOne({ roomId: user._id });
 
-        const allUsers = await User.find({ deletedAt: null });
-  
-        for (const user of allUsers) {
-          const room = await Room.findOne({ roomId: user._id });
-    
-          if (room) {
-            room.participants.push({ id: newMPersonnel._id, model: "MPersonnel" }); // ใช้ newMPersonnel._id
-            await room.save();
-          }
-        }
+      if (room) {
+        room.participants.push({ id: newMPersonnel._id, model: "MPersonnel" }); // ใช้ newMPersonnel._id
+        await room.save();
+      }
+    }
 
-           console.log("บัญชีถูกสร้างแล้ว เตรียมส่งอีเมล...");
-            console.log("Email User:", process.env.EMAIL_USER);
-            console.log("Email Pass:", process.env.EMAIL_PASS ? "******" : "ไม่มีค่ารหัสผ่าน");
-        
-            const transporter = nodemailer.createTransport({
-              service: "Gmail",
-              auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS,
-              },
-            });
-        
-            transporter.verify((error, success) => {
-              if (error) {
-                console.error("SMTP Error:", error);
-              } else {
-                console.log("SMTP Server พร้อมใช้งาน");
-              }
-            });
-        
-            const mailOptions = {
-              from: process.env.EMAIL_USER,
-              to: email,
-              subject: "บัญชีบุคลากรทางการแพทย์ของคุณถูกสร้างแล้ว",
-              html: `
+    console.log("บัญชีถูกสร้างแล้ว เตรียมส่งอีเมล...");
+    console.log("Email User:", process.env.EMAIL_USER);
+    console.log(
+      "Email Pass:",
+      process.env.EMAIL_PASS ? "******" : "ไม่มีค่ารหัสผ่าน"
+    );
+
+    const transporter = nodemailer.createTransport({
+      service: "Gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    transporter.verify((error, success) => {
+      if (error) {
+        console.error("SMTP Error:", error);
+      } else {
+        console.log("SMTP Server พร้อมใช้งาน");
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "บัญชีบุคลากรทางการแพทย์ของคุณถูกสร้างแล้ว",
+      html: `
                 <html>
                   <body style="font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px;">
                     <div style="max-width: 600px; margin: 0 auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
@@ -896,12 +942,11 @@ app.post("/addmpersonnel", async (req, res) => {
                   </body>
                 </html>
               `,
-            };
-            
-        
-            // ส่งอีเมล
-            const info = await transporter.sendMail(mailOptions);
-            // console.log("✅ อีเมลถูกส่งแล้ว:", info.response);
+    };
+
+    // ส่งอีเมล
+    const info = await transporter.sendMail(mailOptions);
+    // console.log("✅ อีเมลถูกส่งแล้ว:", info.response);
     res.send({ status: "ok" });
   } catch (error) {
     res.send({ status: "error", error: error.message });
@@ -939,113 +984,128 @@ const storage = multer.diskStorage({
   },
 });
 
-
-
 const upload = multer({ storage: storage }).fields([
   { name: "image", maxCount: 1 },
   { name: "file", maxCount: 1 },
 ]);
 
-app.post("/addcaremanual", uploadimg.fields([{ name: 'image' }, { name: 'file' }]), async (req, res) => {
-  const { caremanual_name, detail } = req.body;
+app.post(
+  "/addcaremanual",
+  uploadimg.fields([{ name: "image" }, { name: "file" }]),
+  async (req, res) => {
+    const { caremanual_name, detail } = req.body;
 
-  if (!caremanual_name) {
-    return res.status(400).json({ error: "กรุณากรอกหัวข้อ" });
-  }
-
-  if (!req.files['image']) {
-    return res.status(400).json({ error: "กรุณาเลือกรูปภาพ" });
-  }
-
-  try {
-    const existingCareManual = await Caremanual.findOne({ 
-    caremanual_name : { $regex: `^${caremanual_name}$`, $options: 'i' }
-  });
-    if (existingCareManual) {
-      return res.status(400).json({ error: "หัวข้อนี้มีอยู่แล้ว กรุณาใช้หัวข้ออื่น" });
+    if (!caremanual_name) {
+      return res.status(400).json({ error: "กรุณากรอกหัวข้อ" });
     }
 
-    let imageUrl = null;
-    let fileUrl = null;
-     let originalFileName = null;
-    const bucket = admin.storage().bucket();
-    const uploadPromises = [];
+    if (!req.files["image"]) {
+      return res.status(400).json({ error: "กรุณาเลือกรูปภาพ" });
+    }
 
-    // อัปโหลดรูปภาพ
-    if (req.files['image']) {
-      const imageFileName = Date.now() + '-' + req.files['image'][0].originalname;
-      const imageFile = bucket.file(imageFileName);
+    try {
+      const existingCareManual = await Caremanual.findOne({
+        caremanual_name: { $regex: `^${caremanual_name}$`, $options: "i" },
+      });
+      if (existingCareManual) {
+        return res
+          .status(400)
+          .json({ error: "หัวข้อนี้มีอยู่แล้ว กรุณาใช้หัวข้ออื่น" });
+      }
 
-      const imageUploadPromise = new Promise((resolve, reject) => {
-        const imageFileStream = imageFile.createWriteStream({
-          metadata: { contentType: req.files['image'][0].mimetype }
+      let imageUrl = null;
+      let fileUrl = null;
+      let originalFileName = null;
+      const bucket = admin.storage().bucket();
+      const uploadPromises = [];
+
+      // อัปโหลดรูปภาพ
+      if (req.files["image"]) {
+        const imageFileName =
+          Date.now() + "-" + req.files["image"][0].originalname;
+        const imageFile = bucket.file(imageFileName);
+
+        const imageUploadPromise = new Promise((resolve, reject) => {
+          const imageFileStream = imageFile.createWriteStream({
+            metadata: { contentType: req.files["image"][0].mimetype },
+          });
+
+          imageFileStream.on("error", (err) => {
+            console.error("Error uploading image:", err);
+            reject(err);
+          });
+
+          imageFileStream.on("finish", () => {
+            imageUrl = `https://firebasestorage.googleapis.com/v0/b/${
+              bucket.name
+            }/o/${encodeURIComponent(imageFileName)}?alt=media`;
+            resolve();
+          });
+
+          imageFileStream.end(req.files["image"][0].buffer);
         });
 
-        imageFileStream.on('error', (err) => {
-          console.error('Error uploading image:', err);
-          reject(err);
+        uploadPromises.push(imageUploadPromise);
+      }
+
+      // อัปโหลดไฟล์ (ถ้ามี)
+      if (req.files["file"]) {
+        const fileOriginalName = Buffer.from(
+          req.files["file"][0].originalname,
+          "latin1"
+        ).toString("utf8");
+        const fileFileName =
+          Date.now() + "-" + req.files["file"][0].originalname;
+        const fileFile = bucket.file(fileFileName);
+
+        const fileUploadPromise = new Promise((resolve, reject) => {
+          const fileFileStream = fileFile.createWriteStream({
+            metadata: { contentType: req.files["file"][0].mimetype },
+          });
+
+          fileFileStream.on("error", (err) => {
+            console.error("Error uploading file:", err);
+            reject(err);
+          });
+
+          fileFileStream.on("finish", () => {
+            fileUrl = `https://firebasestorage.googleapis.com/v0/b/${
+              bucket.name
+            }/o/${encodeURIComponent(fileFileName)}?alt=media`;
+            originalFileName = fileOriginalName;
+            resolve();
+          });
+
+          fileFileStream.end(req.files["file"][0].buffer);
         });
 
-        imageFileStream.on('finish', () => {
-          imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(imageFileName)}?alt=media`;
-          resolve();
-        });
+        uploadPromises.push(fileUploadPromise);
+      }
 
-        imageFileStream.end(req.files['image'][0].buffer);
+      await Promise.all(uploadPromises);
+
+      const newCare = new Caremanual({
+        caremanual_name,
+        image: imageUrl,
+        file: fileUrl,
+        originalFileName,
+        detail,
       });
 
-      uploadPromises.push(imageUploadPromise);
-    }
-
-    // อัปโหลดไฟล์ (ถ้ามี)
-    if (req.files['file']) {
-      const fileOriginalName = Buffer.from(
-        req.files['file'][0].originalname,
-        "latin1"
-      ).toString("utf8");
-      const fileFileName = Date.now() + '-' + req.files['file'][0].originalname;
-      const fileFile = bucket.file(fileFileName);
-
-      const fileUploadPromise = new Promise((resolve, reject) => {
-        const fileFileStream = fileFile.createWriteStream({
-          metadata: { contentType: req.files['file'][0].mimetype }
-        });
-
-        fileFileStream.on('error', (err) => {
-          console.error('Error uploading file:', err);
-          reject(err);
-        });
-
-        fileFileStream.on('finish', () => {
-          fileUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileFileName)}?alt=media`;
-          originalFileName = fileOriginalName; 
-          resolve();
-        });
-
-        fileFileStream.end(req.files['file'][0].buffer);
+      await newCare.save();
+      return res.json({
+        status: "ok",
+        success: true,
+        message: "Care manual saved",
       });
-
-      uploadPromises.push(fileUploadPromise);
+    } catch (error) {
+      console.error("Error processing request:", error);
+      return res
+        .status(500)
+        .json({ success: false, message: "Error processing request" });
     }
-
-    await Promise.all(uploadPromises);
-
-    const newCare = new Caremanual({
-      caremanual_name,
-      image: imageUrl,
-      file: fileUrl,
-      originalFileName,
-      detail,
-    });
-
-    await newCare.save();
-    return res.json({ status: "ok", success: true, message: 'Care manual saved' });
-
-  } catch (error) {
-    console.error('Error processing request:', error);
-    return res.status(500).json({ success: false, message: 'Error processing request' });
   }
-});
+);
 app.delete("/remove-image/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -1215,7 +1275,7 @@ app.post("/addmedicalinformation", upload1, async (req, res) => {
       Present_illness,
       Phychosocial_assessment,
       Management_plan,
-      userId
+      userId,
     } = req.body;
 
     let filePresent = "";
@@ -1224,70 +1284,82 @@ app.post("/addmedicalinformation", upload1, async (req, res) => {
     let filePresentName = "";
     let fileManageName = "";
     let filePhychosocialName = "";
-    
+
     // Upload fileP to Firebase Storage
     if (req.files["fileP"] && req.files["fileP"][0]) {
       const file = req.files["fileP"][0];
-      const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
-      const fileName = Date.now() + '-' + originalName;
+      const originalName = Buffer.from(file.originalname, "latin1").toString(
+        "utf8"
+      );
+      const fileName = Date.now() + "-" + originalName;
       const fileRef = bucket.file(fileName);
       const fileStream = fileRef.createWriteStream({
         metadata: { contentType: file.mimetype },
       });
-    
+
       fileStream.end(file.buffer);
       await new Promise((resolve, reject) => {
-        fileStream.on('finish', () => {
-          filePresent = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+        fileStream.on("finish", () => {
+          filePresent = `https://firebasestorage.googleapis.com/v0/b/${
+            bucket.name
+          }/o/${encodeURIComponent(fileName)}?alt=media`;
           filePresentName = originalName; // เก็บชื่อไฟล์ดั้งเดิม
           resolve();
         });
-        fileStream.on('error', reject);
+        fileStream.on("error", reject);
       });
     }
-    
+
     // Upload fileM to Firebase Storage
     if (req.files["fileM"] && req.files["fileM"][0]) {
       const file = req.files["fileM"][0];
-      const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
-      const fileName = Date.now() + '-' + originalName;
+      const originalName = Buffer.from(file.originalname, "latin1").toString(
+        "utf8"
+      );
+      const fileName = Date.now() + "-" + originalName;
       const fileRef = bucket.file(fileName);
       const fileStream = fileRef.createWriteStream({
         metadata: { contentType: file.mimetype },
       });
-    
+
       fileStream.end(file.buffer);
       await new Promise((resolve, reject) => {
-        fileStream.on('finish', () => {
-          fileManage = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+        fileStream.on("finish", () => {
+          fileManage = `https://firebasestorage.googleapis.com/v0/b/${
+            bucket.name
+          }/o/${encodeURIComponent(fileName)}?alt=media`;
           fileManageName = originalName;
           resolve();
         });
-        fileStream.on('error', reject);
+        fileStream.on("error", reject);
       });
     }
-    
+
     // Upload filePhy to Firebase Storage
     if (req.files["filePhy"] && req.files["filePhy"][0]) {
       const file = req.files["filePhy"][0];
-      const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
-      const fileName = Date.now() + '-' + originalName;
+      const originalName = Buffer.from(file.originalname, "latin1").toString(
+        "utf8"
+      );
+      const fileName = Date.now() + "-" + originalName;
       const fileRef = bucket.file(fileName);
       const fileStream = fileRef.createWriteStream({
         metadata: { contentType: file.mimetype },
       });
-    
+
       fileStream.end(file.buffer);
       await new Promise((resolve, reject) => {
-        fileStream.on('finish', () => {
-          filePhychosocial = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+        fileStream.on("finish", () => {
+          filePhychosocial = `https://firebasestorage.googleapis.com/v0/b/${
+            bucket.name
+          }/o/${encodeURIComponent(fileName)}?alt=media`;
           filePhychosocialName = originalName;
           resolve();
         });
-        fileStream.on('error', reject);
+        fileStream.on("error", reject);
       });
     }
-    
+
     // Save medical information with original file names
     const medicalInformation = await MedicalInformation.create({
       HN,
@@ -1308,7 +1380,7 @@ app.post("/addmedicalinformation", upload1, async (req, res) => {
       filePhyName: filePhychosocialName,
       user: userId,
     });
-    
+
     res.json({ status: "ok", data: medicalInformation });
   } catch (error) {
     console.error("Error adding medical information:", error);
@@ -1320,12 +1392,10 @@ app.get("/medicalInformation/:id", async (req, res) => {
   try {
     const medicalInfo = await MedicalInformation.findOne({ user: id });
     if (!medicalInfo) {
-      return res
-        .status(404)
-        .send({
-          status: "error",
-          message: "Medical information not found for this user",
-        });
+      return res.status(404).send({
+        status: "error",
+        message: "Medical information not found for this user",
+      });
     }
     res.send({ status: "ok", data: medicalInfo });
   } catch (error) {
@@ -1378,7 +1448,6 @@ app.get("/medicalInformation/:id", async (req, res) => {
 //     res.status(500).json({ status: "error", message: "Internal Server Error" });
 //   }
 // });
-
 
 // // ดึงข้อมูลผู้ป่วยมาโชว์
 
@@ -1444,7 +1513,7 @@ app.get("/medicalInformation/:id", async (req, res) => {
 //   }
 // });
 //มันเอาass ล่าสุดมาแสดงทุกอัน
-// app.get("/latest-assessments", async (req, res) => { 
+// app.get("/latest-assessments", async (req, res) => {
 //   try {
 //     const result = await User.aggregate([
 //       // 🔹 Join กับ PatientForm
@@ -1510,10 +1579,10 @@ app.get("/medicalInformation/:id", async (req, res) => {
 //         $group: {
 //           _id: "$_id",
 //           username: { $first: "$username" },
-//           patientFormExists: { 
-//             $first: { 
-//               $cond: { if: { $ifNull: ["$patientForms", false] }, then: true, else: false } 
-//             } 
+//           patientFormExists: {
+//             $first: {
+//               $cond: { if: { $ifNull: ["$patientForms", false] }, then: true, else: false }
+//             }
 //           },
 //           latestAssessmentStatus: { $first: "$assessments.status_name" },
 //           isAbnormal: { $first: "$isAbnormal" }
@@ -1554,7 +1623,7 @@ app.get("/medicalInformation/:id", async (req, res) => {
 //     res.status(500).json({ status: "error", message: "Internal Server Error" });
 //   }
 // });
-app.get("/latest-assessments", async (req, res) => { 
+app.get("/latest-assessments", async (req, res) => {
   try {
     const result = await User.aggregate([
       // 🔹 Join กับ PatientForm และเลือกอันล่าสุดก่อน
@@ -1563,8 +1632,8 @@ app.get("/latest-assessments", async (req, res) => {
           from: "PatientForm",
           localField: "_id",
           foreignField: "user",
-          as: "patientForms"
-        }
+          as: "patientForms",
+        },
       },
       { $unwind: { path: "$patientForms", preserveNullAndEmptyArrays: true } },
       { $sort: { "patientForms.createdAt": -1 } }, // ✅ เรียงให้ PatientForm ล่าสุดมาก่อน
@@ -1576,13 +1645,18 @@ app.get("/latest-assessments", async (req, res) => {
           let: { patientFormId: "$patientForms._id" },
           pipeline: [
             { $match: { $expr: { $eq: ["$PatientForm", "$$patientFormId"] } } },
-            { $sort: { "createdAt": -1 } }, // ✅ เรียงให้ Assessment ล่าสุดมาก่อน
-            { $limit: 1 } // ✅ เอาเฉพาะ 1 รายการล่าสุด
+            { $sort: { createdAt: -1 } }, // ✅ เรียงให้ Assessment ล่าสุดมาก่อน
+            { $limit: 1 }, // ✅ เอาเฉพาะ 1 รายการล่าสุด
           ],
-          as: "latestAssessment"
-        }
+          as: "latestAssessment",
+        },
       },
-      { $unwind: { path: "$latestAssessment", preserveNullAndEmptyArrays: true } },
+      {
+        $unwind: {
+          path: "$latestAssessment",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
 
       // 🔹 Join กับ UserThresholds
       {
@@ -1590,8 +1664,8 @@ app.get("/latest-assessments", async (req, res) => {
           from: "UserThresholds",
           localField: "_id",
           foreignField: "user",
-          as: "thresholds"
-        }
+          as: "thresholds",
+        },
       },
       { $unwind: { path: "$thresholds", preserveNullAndEmptyArrays: true } },
 
@@ -1616,39 +1690,140 @@ app.get("/latest-assessments", async (req, res) => {
       //     }
       //   }
       // },
-// 🔹 ตรวจสอบค่าสัญญาณชีพว่าเกินค่าปกติหรือไม่
-{
-  $addFields: {
-    isAbnormal: {
-      $or: [
-        { $and: [{ $ne: ["$patientForms.SBP", null] }, { $lt: ["$patientForms.SBP", "$thresholds.SBP.min"] }] },
-        { $and: [{ $ne: ["$patientForms.SBP", null] }, { $gt: ["$patientForms.SBP", "$thresholds.SBP.max"] }] },
-        { $and: [{ $ne: ["$patientForms.DBP", null] }, { $lt: ["$patientForms.DBP", "$thresholds.DBP.min"] }] },
-        { $and: [{ $ne: ["$patientForms.DBP", null] }, { $gt: ["$patientForms.DBP", "$thresholds.DBP.max"] }] },
-        { $and: [{ $ne: ["$patientForms.PulseRate", null] }, { $lt: ["$patientForms.PulseRate", "$thresholds.PulseRate.min"] }] },
-        { $and: [{ $ne: ["$patientForms.PulseRate", null] }, { $gt: ["$patientForms.PulseRate", "$thresholds.PulseRate.max"] }] },
-        { $and: [{ $ne: ["$patientForms.Temperature", null] }, { $lt: ["$patientForms.Temperature", "$thresholds.Temperature.min"] }] },
-        { $and: [{ $ne: ["$patientForms.Temperature", null] }, { $gt: ["$patientForms.Temperature", "$thresholds.Temperature.max"] }] },
-        { $and: [{ $ne: ["$patientForms.DTX", null] }, { $lt: ["$patientForms.DTX", "$thresholds.DTX.min"] }] },
-        { $and: [{ $ne: ["$patientForms.DTX", null] }, { $gt: ["$patientForms.DTX", "$thresholds.DTX.max"] }] },
-        { $and: [{ $ne: ["$patientForms.Respiration", null] }, { $lt: ["$patientForms.Respiration", "$thresholds.Respiration.min"] }] },
-        { $and: [{ $ne: ["$patientForms.Respiration", null] }, { $gt: ["$patientForms.Respiration", "$thresholds.Respiration.max"] }] },
-        { $and: [{ $ne: ["$patientForms.Painscore", null] }, { $gt: ["$patientForms.Painscore", "$thresholds.Painscore.max"] }] }
-
-      ]
-    }
-  }
-},
+      // 🔹 ตรวจสอบค่าสัญญาณชีพว่าเกินค่าปกติหรือไม่
+      {
+        $addFields: {
+          isAbnormal: {
+            $or: [
+              {
+                $and: [
+                  { $ne: ["$patientForms.SBP", null] },
+                  { $lt: ["$patientForms.SBP", "$thresholds.SBP.min"] },
+                ],
+              },
+              {
+                $and: [
+                  { $ne: ["$patientForms.SBP", null] },
+                  { $gt: ["$patientForms.SBP", "$thresholds.SBP.max"] },
+                ],
+              },
+              {
+                $and: [
+                  { $ne: ["$patientForms.DBP", null] },
+                  { $lt: ["$patientForms.DBP", "$thresholds.DBP.min"] },
+                ],
+              },
+              {
+                $and: [
+                  { $ne: ["$patientForms.DBP", null] },
+                  { $gt: ["$patientForms.DBP", "$thresholds.DBP.max"] },
+                ],
+              },
+              {
+                $and: [
+                  { $ne: ["$patientForms.PulseRate", null] },
+                  {
+                    $lt: [
+                      "$patientForms.PulseRate",
+                      "$thresholds.PulseRate.min",
+                    ],
+                  },
+                ],
+              },
+              {
+                $and: [
+                  { $ne: ["$patientForms.PulseRate", null] },
+                  {
+                    $gt: [
+                      "$patientForms.PulseRate",
+                      "$thresholds.PulseRate.max",
+                    ],
+                  },
+                ],
+              },
+              {
+                $and: [
+                  { $ne: ["$patientForms.Temperature", null] },
+                  {
+                    $lt: [
+                      "$patientForms.Temperature",
+                      "$thresholds.Temperature.min",
+                    ],
+                  },
+                ],
+              },
+              {
+                $and: [
+                  { $ne: ["$patientForms.Temperature", null] },
+                  {
+                    $gt: [
+                      "$patientForms.Temperature",
+                      "$thresholds.Temperature.max",
+                    ],
+                  },
+                ],
+              },
+              {
+                $and: [
+                  { $ne: ["$patientForms.DTX", null] },
+                  { $lt: ["$patientForms.DTX", "$thresholds.DTX.min"] },
+                ],
+              },
+              {
+                $and: [
+                  { $ne: ["$patientForms.DTX", null] },
+                  { $gt: ["$patientForms.DTX", "$thresholds.DTX.max"] },
+                ],
+              },
+              {
+                $and: [
+                  { $ne: ["$patientForms.Respiration", null] },
+                  {
+                    $lt: [
+                      "$patientForms.Respiration",
+                      "$thresholds.Respiration.min",
+                    ],
+                  },
+                ],
+              },
+              {
+                $and: [
+                  { $ne: ["$patientForms.Respiration", null] },
+                  {
+                    $gt: [
+                      "$patientForms.Respiration",
+                      "$thresholds.Respiration.max",
+                    ],
+                  },
+                ],
+              },
+              {
+                $and: [
+                  { $ne: ["$patientForms.Painscore", null] },
+                  {
+                    $gt: [
+                      "$patientForms.Painscore",
+                      "$thresholds.Painscore.max",
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
 
       // 🔹 Group ข้อมูลให้เหลือ 1 record ต่อ User
       {
         $group: {
           _id: "$_id",
           username: { $first: "$username" },
-          latestPatientFormExists: { $first: { $ifNull: ["$patientForms", false] } },
+          latestPatientFormExists: {
+            $first: { $ifNull: ["$patientForms", false] },
+          },
           latestAssessmentStatus: { $first: "$latestAssessment.status_name" },
-          isAbnormal: { $first: "$isAbnormal" }
-        }
+          isAbnormal: { $first: "$isAbnormal" },
+        },
       },
 
       // 🔹 ตัดสินค่า latestStatusName ตามเงื่อนไข
@@ -1670,15 +1845,15 @@ app.get("/latest-assessments", async (req, res) => {
                     $cond: {
                       if: "$isAbnormal",
                       then: "สัญญาณชีพผิดปกติ",
-                      else: "สัญญาณชีพปกติ"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+                      else: "สัญญาณชีพปกติ",
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     ]);
 
     res.json({ status: "ok", data: result });
@@ -1687,8 +1862,6 @@ app.get("/latest-assessments", async (req, res) => {
     res.status(500).json({ status: "error", message: "Internal Server Error" });
   }
 });
-
-
 
 app.get("/alluser", async (req, res) => {
   try {
@@ -1740,13 +1913,17 @@ app.get("/checkVitals/:patientFormId", async (req, res) => {
     const { patientFormId } = req.params;
 
     // ดึงข้อมูล PatientForm
-    const patientForm = await PatientForm.findById(patientFormId).populate("user");
+    const patientForm = await PatientForm.findById(patientFormId).populate(
+      "user"
+    );
     if (!patientForm) {
       return res.status(404).json({ message: "ไม่พบข้อมูล PatientForm" });
     }
 
     // ดึงค่าของ UserThreshold
-    const userThreshold = await UserThreshold.findOne({ user: patientForm.user._id });
+    const userThreshold = await UserThreshold.findOne({
+      user: patientForm.user._id,
+    });
     if (!userThreshold) {
       return res.status(404).json({ message: "ไม่พบข้อมูล UserThreshold" });
     }
@@ -1754,10 +1931,10 @@ app.get("/checkVitals/:patientFormId", async (req, res) => {
     // ตรวจสอบว่าค่าวัดของคนไข้อยู่ในเกณฑ์หรือไม่
     const isAbnormal = (key) => {
       if (
-        patientForm[key] === null || 
-        patientForm[key] === undefined || 
-        !userThreshold[key] || 
-        userThreshold[key].min === undefined || 
+        patientForm[key] === null ||
+        patientForm[key] === undefined ||
+        !userThreshold[key] ||
+        userThreshold[key].min === undefined ||
         userThreshold[key].max === undefined
       ) {
         return false; // ข้ามการตรวจสอบ ถ้าค่าในฟอร์มเป็น null หรือ threshold ไม่มีค่า
@@ -1770,7 +1947,14 @@ app.get("/checkVitals/:patientFormId", async (req, res) => {
     };
 
     // ค่าที่ต้องตรวจสอบ
-    const keysToCheck = ["SBP", "DBP", "PulseRate", "Temperature", "DTX", "Respiration"];
+    const keysToCheck = [
+      "SBP",
+      "DBP",
+      "PulseRate",
+      "Temperature",
+      "DTX",
+      "Respiration",
+    ];
 
     // ค้นหาค่าที่ผิดปกติ
     const abnormalKeys = keysToCheck.filter(isAbnormal);
@@ -1972,7 +2156,9 @@ app.delete("/deletemedicalInformation/:id", async (req, res) => {
     const medicalInfo = await MedicalInformation.deleteOne({ user: id });
 
     if (!medicalInfo.deletedCount) {
-      return res.status(404).json({ error: "Medical information not found for this user" });
+      return res
+        .status(404)
+        .json({ error: "Medical information not found for this user" });
     }
 
     res.json({ message: "ลบข้อมูลการเจ็บป่วยสำเร็จ", data: medicalInfo });
@@ -2007,15 +2193,22 @@ const uploadFiles = (files) => {
     let imageUrl = "";
     let fileUrl = "";
     let originalFileName = "";
-    const uploadImage = files["image"] && files["image"][0] ? uploadFileToBucket(files["image"][0]) : Promise.resolve("");
+    const uploadImage =
+      files["image"] && files["image"][0]
+        ? uploadFileToBucket(files["image"][0])
+        : Promise.resolve("");
     // const uploadFile = files["file"] && files["file"][0] ? uploadFileToBucket(files["file"][0]) : Promise.resolve("");
 
-    const uploadFile = files["file"] && files["file"][0] 
-    ? uploadFileToBucket(files["file"][0]).then(url => {
-        originalFileName = Buffer.from(files["file"][0].originalname, "latin1").toString("utf8");
-        return url;
-      }) 
-    : Promise.resolve("");
+    const uploadFile =
+      files["file"] && files["file"][0]
+        ? uploadFileToBucket(files["file"][0]).then((url) => {
+            originalFileName = Buffer.from(
+              files["file"][0].originalname,
+              "latin1"
+            ).toString("utf8");
+            return url;
+          })
+        : Promise.resolve("");
 
     Promise.all([uploadImage, uploadFile])
       .then((urls) => {
@@ -2032,21 +2225,23 @@ const uploadFiles = (files) => {
 const uploadFileToBucket = (file) => {
   return new Promise((resolve, reject) => {
     const bucket = admin.storage().bucket();
-    const fileName = Date.now() + '-' + file.originalname;
+    const fileName = Date.now() + "-" + file.originalname;
     const storageFile = bucket.file(fileName);
 
     const fileStream = storageFile.createWriteStream({
       metadata: {
-        contentType: file.mimetype
-      }
+        contentType: file.mimetype,
+      },
     });
 
-    fileStream.on('error', (err) => {
+    fileStream.on("error", (err) => {
       reject(err);
     });
 
-    fileStream.on('finish', () => {
-      const fileUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+    fileStream.on("finish", () => {
+      const fileUrl = `https://firebasestorage.googleapis.com/v0/b/${
+        bucket.name
+      }/o/${encodeURIComponent(fileName)}?alt=media`;
       resolve(fileUrl);
     });
 
@@ -2054,55 +2249,66 @@ const uploadFileToBucket = (file) => {
   });
 };
 
+app.post(
+  "/updatecaremanual/:id",
+  uploadimg.fields([{ name: "image" }, { name: "file" }]),
+  async (req, res) => {
+    const { caremanual_name, detail } = req.body;
+    const { id } = req.params;
 
+    try {
+      const existingCaremanual = await Caremanual.findOne({
+        caremanual_name: { $regex: `^${caremanual_name}$`, $options: "i" },
+      });
+      if (existingCaremanual && existingCaremanual._id.toString() !== id) {
+        return res
+          .status(400)
+          .json({ error: "ชื่อคู่มือซ้ำในระบบ กรุณาเปลี่ยนชื่อ" });
+      }
 
-app.post("/updatecaremanual/:id", uploadimg.fields([{ name: 'image' }, { name: 'file' }]), async (req, res) => {
-  const { caremanual_name, detail } = req.body;
-  const { id } = req.params;
+      const files = req.files;
 
-  try {
-    const existingCaremanual = await Caremanual.findOne({ 
-      caremanual_name: { $regex: `^${caremanual_name}$`, $options: 'i' }    });
-    if (existingCaremanual && existingCaremanual._id.toString() !== id) {
-      return res.status(400).json({ error: 'ชื่อคู่มือซ้ำในระบบ กรุณาเปลี่ยนชื่อ' });
-    }
-    
-    const files = req.files;
+      const { imageUrl, fileUrl, originalFileName } = await uploadFiles(files);
 
+      let finalOriginalFileName = existingCaremanual
+        ? existingCaremanual.originalFileName
+        : undefined;
 
-    const { imageUrl, fileUrl, originalFileName } = await uploadFiles(files);
-
-    let finalOriginalFileName = existingCaremanual ? existingCaremanual.originalFileName : undefined;
-    
-    if (fileUrl) {
+      if (fileUrl) {
         finalOriginalFileName = originalFileName;
       }
 
-    const updatedData = {
-      caremanual_name,
-      image: imageUrl || undefined,
-      file: fileUrl || undefined,
-      originalFileName: finalOriginalFileName,       
-      detail
-    };
-    
+      const updatedData = {
+        caremanual_name,
+        image: imageUrl || undefined,
+        file: fileUrl || undefined,
+        originalFileName: finalOriginalFileName,
+        detail,
+      };
 
-    Object.keys(updatedData).forEach(key => updatedData[key] === undefined && delete updatedData[key]);
+      Object.keys(updatedData).forEach(
+        (key) => updatedData[key] === undefined && delete updatedData[key]
+      );
 
-    const updatedCaremanual = await Caremanual.findByIdAndUpdate(id, updatedData, { new: true });
+      const updatedCaremanual = await Caremanual.findByIdAndUpdate(
+        id,
+        updatedData,
+        { new: true }
+      );
 
-    if (!updatedCaremanual) {
-      return res.status(404).json({ status: "Caremanual not found" });
+      if (!updatedCaremanual) {
+        return res.status(404).json({ status: "Caremanual not found" });
+      }
+
+      res.json({ status: "ok", updatedCaremanual });
+    } catch (error) {
+      console.error("Error processing request:", error);
+      res
+        .status(500)
+        .json({ success: false, message: "Error processing request" });
     }
-
-
-    res.json({ status: "ok", updatedCaremanual });
-
-  } catch (error) {
-    console.error('Error processing request:', error);
-    res.status(500).json({ success: false, message: 'Error processing request' });
   }
-});
+);
 
 //ดึงคู่มือมา
 app.get("/getcaremanual/:id", async (req, res) => {
@@ -2271,11 +2477,10 @@ app.post("/forgot-passworddt", async (req, res) => {
       } else {
         console.log("Email sent: " + info.response);
         return res.status(200).json({ status: "check your emailbox" });
-
       }
     });
     console.log(link);
-  } catch (error) { }
+  } catch (error) {}
 });
 
 app.get("/reset-passworddt/:id/:token", async (req, res) => {
@@ -2369,8 +2574,10 @@ app.get("/searchmpersonnel", async (req, res) => {
     const result = await MPersonnel.aggregate([
       {
         $addFields: {
-          fullname: { $concat: ["$username","$nametitle", "$name", " ", "$surname"] }
-        }
+          fullname: {
+            $concat: ["$username", "$nametitle", "$name", " ", "$surname"],
+          },
+        },
       },
       {
         $match: {
@@ -2378,10 +2585,10 @@ app.get("/searchmpersonnel", async (req, res) => {
             { nametitle: { $regex: regex } },
             { name: { $regex: regex } },
             { surname: { $regex: regex } },
-            { fullname: { $regex: regex } }
-          ]
-        }
-      }
+            { fullname: { $regex: regex } },
+          ],
+        },
+      },
     ]);
     res.json({ status: "ok", data: result });
   } catch (error) {
@@ -2417,10 +2624,7 @@ app.get("/searchadmin", async (req, res) => {
     const regex = new RegExp(escapeRegex(keyword), "i");
 
     const result = await Admins.find({
-      $or: [{ username: { $regex: regex } }
-        ,
-        { email: { $regex: regex } },
-      ],
+      $or: [{ username: { $regex: regex } }, { email: { $regex: regex } }],
     });
 
     res.json({ status: "ok", data: result });
@@ -2448,12 +2652,12 @@ async function initializeDefaultThreshold() {
         Painscore: 5,
       });
       await defaultThreshold.save();
-      console.log('Default threshold initialized successfully');
+      console.log("Default threshold initialized successfully");
     } else {
-      console.log('Default threshold already exists');
+      console.log("Default threshold already exists");
     }
   } catch (error) {
-    console.error('Error initializing default threshold:', error);
+    console.error("Error initializing default threshold:", error);
   }
 }
 
@@ -2473,15 +2677,13 @@ const initializeRooms = async () => {
     // ค้นหา User ที่ยังไม่มี Room
     const usersWithoutRoom = await User.find({
       deletedAt: null,
-      _id: { $nin: (await Room.find({}).distinct("roomId")) },
+      _id: { $nin: await Room.find({}).distinct("roomId") },
     });
 
     if (!usersWithoutRoom.length) {
       console.log("All users already have rooms.");
       return;
     }
-
-
 
     // สร้าง Room สำหรับผู้ใช้เหล่านั้น
     const roomsToCreate = usersWithoutRoom.map((user) => ({
@@ -2506,11 +2708,13 @@ const initializeRooms = async () => {
 initializeRooms();
 //ไปอัปเดตอันที่เคยลบไป
 app.post("/adduser", async (req, res) => {
-  const { username, name, surname, tel, email, physicalTherapy,originalTel } = req.body;
+  const { username, name, surname, tel, email, physicalTherapy, originalTel } =
+    req.body;
 
   if (!username || !tel || !name || !surname) {
     return res.json({
-      error: "เลขประจำตัวประชาชน เบอร์โทรศัพท์ ชื่อและนามสกุล ไม่ควรเป็นค่าว่าง",
+      error:
+        "เลขประจำตัวประชาชน เบอร์โทรศัพท์ ชื่อและนามสกุล ไม่ควรเป็นค่าว่าง",
     });
   }
 
@@ -2535,7 +2739,7 @@ app.post("/adduser", async (req, res) => {
       oldUser.surname = surname;
       oldUser.password = encryptedPassword;
       oldUser.tel = tel;
-      oldUser. originalTel = originalTel;
+      oldUser.originalTel = originalTel;
       oldUser.deletedAt = null;
       oldUser.email = email || null;
       oldUser.physicalTherapy = physicalTherapy || false;
@@ -2553,43 +2757,45 @@ app.post("/adduser", async (req, res) => {
         physicalTherapy: physicalTherapy || false,
       });
     }
-   // ดึงค่า DefaultThreshold จากฐานข้อมูล
-   const defaultThreshold = await DefaultThreshold.findOne();
+    // ดึงค่า DefaultThreshold จากฐานข้อมูล
+    const defaultThreshold = await DefaultThreshold.findOne();
 
-   if (!defaultThreshold) {
-     return res.status(500).json({
-       status: "error",
-       message: "Default threshold not set. Please configure it first.",
-     });
-   }
+    if (!defaultThreshold) {
+      return res.status(500).json({
+        status: "error",
+        message: "Default threshold not set. Please configure it first.",
+      });
+    }
 
-   // สร้าง threshold ค่าเริ่มต้นสำหรับผู้ใช้ใหม่
-   const userThreshold = {
-     user: user._id,
-     SBP: defaultThreshold.SBP,
-     DBP: defaultThreshold.DBP,
-     PulseRate: defaultThreshold.PulseRate,
-     Temperature: defaultThreshold.Temperature,
-     DTX: defaultThreshold.DTX,
-     Respiration: defaultThreshold.Respiration,
-     Painscore: defaultThreshold.Painscore,
-   };
-   await UserThreshold.create(userThreshold);
-   
-      // ดึงรายชื่อแพทย์ทั้งหมด
-      const allPersonnel = await MPersonnel.find({ deletedAt: null });
+    // สร้าง threshold ค่าเริ่มต้นสำหรับผู้ใช้ใหม่
+    const userThreshold = {
+      user: user._id,
+      SBP: defaultThreshold.SBP,
+      DBP: defaultThreshold.DBP,
+      PulseRate: defaultThreshold.PulseRate,
+      Temperature: defaultThreshold.Temperature,
+      DTX: defaultThreshold.DTX,
+      Respiration: defaultThreshold.Respiration,
+      Painscore: defaultThreshold.Painscore,
+    };
+    await UserThreshold.create(userThreshold);
 
-      // สร้าง Room ใหม่
-      const room = {
-        roomId: user._id, // ใช้ _id ของผู้ป่วยเป็น Room ID
-        participants: [
-          { id: user._id, model: "User" }, // เพิ่มผู้ป่วยเข้า Room
-          ...allPersonnel.map((personnel) => ({ id: personnel._id, model: "MPersonnel" })), // เพิ่มแพทย์ทุกคนเข้า Room
-        ],
+    // ดึงรายชื่อแพทย์ทั้งหมด
+    const allPersonnel = await MPersonnel.find({ deletedAt: null });
 
-      };
-  
-      await Room.create(room); // บันทึก Room ลงฐานข้อมูล
+    // สร้าง Room ใหม่
+    const room = {
+      roomId: user._id, // ใช้ _id ของผู้ป่วยเป็น Room ID
+      participants: [
+        { id: user._id, model: "User" }, // เพิ่มผู้ป่วยเข้า Room
+        ...allPersonnel.map((personnel) => ({
+          id: personnel._id,
+          model: "MPersonnel",
+        })), // เพิ่มแพทย์ทุกคนเข้า Room
+      ],
+    };
+
+    await Room.create(room); // บันทึก Room ลงฐานข้อมูล
     res.send({ status: "ok", user }); // ส่งข้อมูลผู้ใช้กลับไปด้วย
   } catch (error) {
     console.error("Error creating user:", error);
@@ -2597,16 +2803,12 @@ app.post("/adduser", async (req, res) => {
   }
 });
 
-
-
-
-const { GoogleAuth } = require('google-auth-library');
+const { GoogleAuth } = require("google-auth-library");
 
 const auth = new GoogleAuth({
   keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-  scopes: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+  scopes: "https://www.googleapis.com/auth/spreadsheets.readonly",
 });
-
 
 // Function to fetch data from Google Sheets
 async function getDataFromGoogleSheet() {
@@ -2617,7 +2819,6 @@ async function getDataFromGoogleSheet() {
   });
   return response.data.values;
 }
-
 
 // Function to save data to MongoDB
 async function saveDataToMongoDB() {
@@ -2631,9 +2832,13 @@ async function saveDataToMongoDB() {
     const newData = data.slice(1).filter((row) => row[1] !== lastSavedUsername);
 
     for (const row of newData) {
-      const existingUser = await User.findOne({ $or: [{ username: row[1] }, { email: row[4] }] });
+      const existingUser = await User.findOne({
+        $or: [{ username: row[1] }, { email: row[4] }],
+      });
       if (existingUser) {
-        console.log(`User with username ${row[1]} or email ${row[4]} already exists. Skipping...`);
+        console.log(
+          `User with username ${row[1]} or email ${row[4]} already exists. Skipping...`
+        );
         continue;
       }
 
@@ -2691,14 +2896,18 @@ app.post("/loginuser", async (req, res) => {
     }
 
     if (await bcrypt.compare(password, user.password)) {
-      const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: "30d" });
+      const token = jwt.sign({ username: user.username }, JWT_SECRET, {
+        expiresIn: "30d",
+      });
       return res.status(201).send({
         status: "ok",
         data: token,
         addDataFirst: user.AdddataFirst,
       });
     } else {
-      return res.status(401).json({ error: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" });
+      return res
+        .status(401)
+        .json({ error: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" });
     }
   } catch (error) {
     return res.status(500).json({ error: "เกิดข้อผิดพลาดในการเข้าสู่ระบบ" });
@@ -2871,7 +3080,6 @@ app.post("/userdata", async (req, res) => {
 //   }
 // });
 
-
 // app.post('/updateuserinfo', async (req, res) => {
 //   const {
 //     username,
@@ -2958,7 +3166,7 @@ app.post("/userdata", async (req, res) => {
 //   }
 // });
 
-// app.post('/updateuserinfo', async (req, res) => { 
+// app.post('/updateuserinfo', async (req, res) => {
 //   const {
 //     username,
 //     name,
@@ -3062,7 +3270,7 @@ app.post("/userdata", async (req, res) => {
 // });
 
 //เกือบล่าสุด ตอน ID_card_number ตรงกันมันแก้อันนั้นเลย
-// app.post('/updateuserinfo', async (req, res) => { 
+// app.post('/updateuserinfo', async (req, res) => {
 //   const {
 //     username,
 //     name,
@@ -3151,7 +3359,7 @@ app.post("/userdata", async (req, res) => {
 //                 user: user, // เพิ่ม user ใหม่ที่เชื่อมโยงกับ caregiver
 //                 relationship: caregiver.Relationship || "-", // เพิ่ม relationship (หรือใช้ "-" หากไม่มี)
 //               },
-//             ],         
+//             ],
 //           });
 //         }
 //       }
@@ -3166,8 +3374,8 @@ app.post("/userdata", async (req, res) => {
 //   }
 // });
 
-app.post('/updateuserinfo', async (req, res) => { 
-  console.log('Request Body:', JSON.stringify(req.body, null, 2));
+app.post("/updateuserinfo", async (req, res) => {
+  console.log("Request Body:", JSON.stringify(req.body, null, 2));
   const {
     username,
     name,
@@ -3205,13 +3413,16 @@ app.post('/updateuserinfo', async (req, res) => {
       );
       for (const caregiver of caregivers) {
         if (caregiver._id) {
-          console.log('Request Body:', "เงื่อนไขมีไอดี");
-          const existingCaregiver = await Caregiver.findOne({ _id: caregiver._id });
+          console.log("Request Body:", "เงื่อนไขมีไอดี");
+          const existingCaregiver = await Caregiver.findOne({
+            _id: caregiver._id,
+          });
           if (existingCaregiver) {
             if (existingCaregiver.ID_card_number === caregiver.ID_card_number) {
-              const existingRelationship = existingCaregiver.userRelationships.find(
-                (rel) => rel.user.toString() === user
-              );
+              const existingRelationship =
+                existingCaregiver.userRelationships.find(
+                  (rel) => rel.user.toString() === user
+                );
               if (!existingRelationship) {
                 existingCaregiver.userRelationships.push({
                   user: user,
@@ -3220,7 +3431,10 @@ app.post('/updateuserinfo', async (req, res) => {
                 await existingCaregiver.save(); // บันทึกการเปลี่ยนแปลง
               } else {
                 // ถ้ามี user แล้ว ตรวจสอบว่ามีการส่ง relationship ใหม่หรือไม่
-                if (caregiver.relationship !== undefined && caregiver.relationship !== null) {
+                if (
+                  caregiver.relationship !== undefined &&
+                  caregiver.relationship !== null
+                ) {
                   existingRelationship.relationship = caregiver.relationship; // อัปเดต relationship
                 }
                 await existingCaregiver.save();
@@ -3244,28 +3458,34 @@ app.post('/updateuserinfo', async (req, res) => {
           const existingCaregiver = await Caregiver.findOne({
             ID_card_number: caregiver.ID_card_number,
           });
-      
-          if (existingCaregiver) {
-            const relationship = 
-                  caregiver.userRelationships && caregiver.userRelationships[0]
-                  ? caregiver.userRelationships[0].relationship
-                   : "-"; 
 
-            console.log('Extracted Relationship:', relationship);
-            console.log('userRelationships Before:', JSON.stringify(existingCaregiver.userRelationships, null, 2));
-            const existingRelationship = existingCaregiver.userRelationships.find(
-              (rel) => rel.user.toString() === user
+          if (existingCaregiver) {
+            const relationship =
+              caregiver.userRelationships && caregiver.userRelationships[0]
+                ? caregiver.userRelationships[0].relationship
+                : "-";
+
+            console.log("Extracted Relationship:", relationship);
+            console.log(
+              "userRelationships Before:",
+              JSON.stringify(existingCaregiver.userRelationships, null, 2)
             );
-      
+            const existingRelationship =
+              existingCaregiver.userRelationships.find(
+                (rel) => rel.user.toString() === user
+              );
+
             if (!existingRelationship) {
               existingCaregiver.userRelationships.push({
                 user: user,
-                relationship: relationship, 
+                relationship: relationship,
               });
-              console.log('userRelationships After:', JSON.stringify(existingCaregiver.userRelationships, null, 2));
+              console.log(
+                "userRelationships After:",
+                JSON.stringify(existingCaregiver.userRelationships, null, 2)
+              );
 
-              await existingCaregiver.save(); 
-              
+              await existingCaregiver.save();
             }
           } else {
             // กรณีไม่มี caregiver ในระบบ ให้สร้างใหม่
@@ -3285,36 +3505,37 @@ app.post('/updateuserinfo', async (req, res) => {
           }
         }
       }
-      
-      res.send({ status: 'Ok', data: 'User and Caregivers Updated' });
+
+      res.send({ status: "Ok", data: "User and Caregivers Updated" });
     } else {
-      res.status(400).send({ error: 'Invalid request data' });
+      res.status(400).send({ error: "Invalid request data" });
     }
   } catch (error) {
-    console.error('Error updating user or caregivers:', error);
-    res.status(500).send({ error: 'Error updating user or caregivers' });
+    console.error("Error updating user or caregivers:", error);
+    res.status(500).send({ error: "Error updating user or caregivers" });
   }
 });
 
-
 //ลืมรหัสผ่าน
-app.post('/forgot-passworduser', async (req, res) => {
+app.post("/forgot-passworduser", async (req, res) => {
   const { email } = req.body;
 
   const user = await User.findOne({ email });
   if (!user) {
-    return res.status(400).send('User not found');
+    return res.status(400).send("User not found");
   }
 
   const otp = crypto.randomInt(100000, 999999).toString();
   const otpExpiration = Date.now() + 300000;
 
-
-  await OTPModelUser.updateOne({ email }, { otp, otpExpiration }, { upsert: true });
-
+  await OTPModelUser.updateOne(
+    { email },
+    { otp, otpExpiration },
+    { upsert: true }
+  );
 
   const transporter = nodemailer.createTransport({
-    service: 'Gmail',
+    service: "Gmail",
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
@@ -3324,41 +3545,44 @@ app.post('/forgot-passworduser', async (req, res) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: user.email,
-    subject: 'Homeward: รหัส OTP สำหรับเปลี่ยนรหัสผ่าน',
+    subject: "Homeward: รหัส OTP สำหรับเปลี่ยนรหัสผ่าน",
     text: `รหัส OTP ของคุณคือ ${otp}\nรหัสมีอายุ 5 นาที อย่าเปิดเผยรหัสนี้กับผู้อื่น`,
   };
 
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
-      return res.status(500).send('ไม่สามารถส่งรหัส OTP ได้');
+      return res.status(500).send("ไม่สามารถส่งรหัส OTP ได้");
     }
-    res.send('OTP sent');
+    res.send("OTP sent");
   });
 });
 
-app.post('/verify-otp', async (req, res) => {
+app.post("/verify-otp", async (req, res) => {
   const { email, otp } = req.body;
 
-  const otpRecord = await OTPModelUser.findOne({ email }).sort({ createdAt: -1 });
+  const otpRecord = await OTPModelUser.findOne({ email }).sort({
+    createdAt: -1,
+  });
   if (!otpRecord) {
-    return res.status(400).send('รหัส OTP หมดอายุหรือไม่ถูกต้อง');
+    return res.status(400).send("รหัส OTP หมดอายุหรือไม่ถูกต้อง");
   }
-  const isOtpValid = otpRecord.otp === otp && Date.now() - otpRecord.createdAt < 10 * 60 * 1000;
+  const isOtpValid =
+    otpRecord.otp === otp && Date.now() - otpRecord.createdAt < 10 * 60 * 1000;
 
   if (!isOtpValid) {
-    return res.status(400).json({ error: 'Invalid or expired OTP' });
+    return res.status(400).json({ error: "Invalid or expired OTP" });
   }
 
   await OTPModelUser.deleteMany({ email });
-  res.send('ส่งรหัส OTP แล้ว');
+  res.send("ส่งรหัส OTP แล้ว");
 });
 
-app.post('/reset-password', async (req, res) => {
+app.post("/reset-password", async (req, res) => {
   const { email, newPassword, confirmpassword } = req.body;
 
   const user = await User.findOne({ email });
   if (!user) {
-    return res.status(400).send('ไม่พบบัญชีนี้');
+    return res.status(400).send("ไม่พบบัญชีนี้");
   }
   if (newPassword !== confirmpassword) {
     return res.send("รหัสผ่านไม่ตรงกัน");
@@ -3368,9 +3592,8 @@ app.post('/reset-password', async (req, res) => {
   user.password = encryptedPassword;
   await user.save();
 
-  res.send('เปลี่ยนรหัสสำเร็จ');
+  res.send("เปลี่ยนรหัสสำเร็จ");
 });
-
 
 // app.post("/updateuserinfo/:id", async (req, res) => {
 //   const {
@@ -3429,7 +3652,6 @@ app.post('/reset-password', async (req, res) => {
 //     return res.status(500).send({ error: "Error updating user or caregiver" });
 //   }
 // });
-
 
 //ดึงข้อมูลผู้ดูแล
 // app.get("/getcaregiver/:id", async (req, res) => {
@@ -3534,7 +3756,7 @@ app.post("/updateuserapp", async (req, res) => {
           nationality,
           Address,
         },
-      },
+      }
     );
     res.send({ status: "Ok", data: "Updated" });
   } catch (error) {
@@ -3576,7 +3798,7 @@ app.post("/updateuserapp", async (req, res) => {
 // });
 app.get("/getCaregiverById/:id", async (req, res) => {
   const { id } = req.params;
-  
+
   try {
     const caregiver = await Caregiver.findOne({ ID_card_number: id });
     if (caregiver) {
@@ -3586,10 +3808,11 @@ app.get("/getCaregiverById/:id", async (req, res) => {
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ status: "Error", message: "เกิดข้อผิดพลาดในเซิร์ฟเวอร์" });
+    res
+      .status(500)
+      .json({ status: "Error", message: "เกิดข้อผิดพลาดในเซิร์ฟเวอร์" });
   }
 });
-
 
 // app.post("/addcaregiver", async (req, res) => {
 //   const { user, name, surname, tel, Relationship,ID_card_number  } = req.body;
@@ -3685,7 +3908,10 @@ app.post("/addcaregiver", async (req, res) => {
       );
 
       if (!userExists) {
-        existingCaregiver.userRelationships.push({ user, relationship: Relationship });
+        existingCaregiver.userRelationships.push({
+          user,
+          relationship: Relationship,
+        });
         await existingCaregiver.save();
         return res.send({
           status: "Ok",
@@ -3773,7 +3999,9 @@ app.post("/deletecaregiver", async (req, res) => {
   const { _id, userId } = req.body; // รับ Caregiver ID และ User ID ที่ต้องการลบ
 
   if (!_id || !userId) {
-    return res.status(400).send({ error: "Caregiver ID and User ID are required" });
+    return res
+      .status(400)
+      .send({ error: "Caregiver ID and User ID are required" });
   }
 
   try {
@@ -3791,7 +4019,10 @@ app.post("/deletecaregiver", async (req, res) => {
     // ถ้าไม่มี userRelationships เหลือแล้ว ให้ลบ caregiver
     if (caregiver.userRelationships.length === 0) {
       await Caregiver.findByIdAndDelete(_id);
-      return res.send({ status: "Ok", message: "Caregiver deleted successfully" });
+      return res.send({
+        status: "Ok",
+        message: "Caregiver deleted successfully",
+      });
     }
 
     // ถ้ายังมี userRelationships เหลืออยู่ ให้บันทึกข้อมูลใหม่
@@ -3818,7 +4049,7 @@ app.post("/deletecaregiver", async (req, res) => {
 //       return res.status(400).send({ error: "User is required" });
 //     }
 //     await Caregiver.updateOne(
-//       { _id: _id }, 
+//       { _id: _id },
 //       {
 //         $set: {
 //           name,
@@ -3838,14 +4069,7 @@ app.post("/deletecaregiver", async (req, res) => {
 
 //แก้ไขรหัสผ่าน
 app.post("/updatecaregiver", async (req, res) => {
-  const {
-    _id,
-    user,
-    name,
-    surname,
-    tel,
-    Relationship,
-  } = req.body;
+  const { _id, user, name, surname, tel, Relationship } = req.body;
 
   try {
     if (!user) {
@@ -3872,12 +4096,7 @@ app.post("/updatecaregiver", async (req, res) => {
 });
 
 app.post("/updatepassuser", async (req, res) => {
-  const {
-    username,
-    password,
-    newPassword,
-    confirmNewPassword
-  } = req.body;
+  const { username, password, newPassword, confirmNewPassword } = req.body;
 
   try {
     if (!username || !password || !newPassword || !confirmNewPassword) {
@@ -3885,7 +4104,9 @@ app.post("/updatepassuser", async (req, res) => {
     }
 
     if (newPassword.trim() !== confirmNewPassword.trim()) {
-      return res.status(400).json({ error: "รหัสผ่านใหม่และยืนยันรหัศผ่านไม่ตรงกัน" });
+      return res
+        .status(400)
+        .json({ error: "รหัสผ่านใหม่และยืนยันรหัศผ่านไม่ตรงกัน" });
     }
 
     // ตรวจสอบรหัสผ่านเก่า
@@ -3907,7 +4128,7 @@ app.post("/updatepassuser", async (req, res) => {
         $set: {
           password: encryptedNewPassword,
         },
-      },
+      }
     );
     res.send({ status: "Ok", data: "Updated" });
   } catch (error) {
@@ -3915,23 +4136,25 @@ app.post("/updatepassuser", async (req, res) => {
     return res.status(500).send({ error: "Error updating user" });
   }
 });
-app.get('/get-default-threshold', async (req, res) => {
+app.get("/get-default-threshold", async (req, res) => {
   try {
     // ดึงข้อมูล DefaultThreshold จากฐานข้อมูล
-    const defaultThreshold = await DefaultThreshold.findOne();  // หาค่าที่บันทึกไว้ใน collection
+    const defaultThreshold = await DefaultThreshold.findOne(); // หาค่าที่บันทึกไว้ใน collection
     if (!defaultThreshold) {
-      return res.status(404).json({ status: 'error', message: 'Default threshold not found' });
+      return res
+        .status(404)
+        .json({ status: "error", message: "Default threshold not found" });
     }
-    res.json({ status: 'success', data: defaultThreshold });
+    res.json({ status: "success", data: defaultThreshold });
   } catch (error) {
-    console.error('Error fetching default threshold:', error);
-    res.status(500).json({ status: 'error', message: 'Internal server error' });
+    console.error("Error fetching default threshold:", error);
+    res.status(500).json({ status: "error", message: "Internal server error" });
   }
 });
 
 //อันแก้แค่ค่าเริ่มต้นเพื่อนำไปใช้ผู้ใช้ใหม่
 // app.post('/update-default-threshold', async (req, res) => {
-//   const { min, max, painscore } = req.body; 
+//   const { min, max, painscore } = req.body;
 //   try {
 //     // ตรวจสอบว่า DefaultThreshold มีอยู่หรือไม่
 //     let defaultThreshold = await DefaultThreshold.findOne();
@@ -3946,7 +4169,7 @@ app.get('/get-default-threshold', async (req, res) => {
 //     defaultThreshold.Temperature = { min: parseFloat(min.Temperature), max: parseFloat(max.Temperature) };
 //     defaultThreshold.DTX = { min: parseFloat(min.DTX), max: parseFloat(max.DTX) };
 //     defaultThreshold.Respiration = { min: parseFloat(min.Respiration), max: parseFloat(max.Respiration) };
-//     defaultThreshold.Painscore = painscore || 5; 
+//     defaultThreshold.Painscore = painscore || 5;
 //     await defaultThreshold.save();
 //     res.json({ status: 'success', message: 'Default threshold updated successfully' });
 //   } catch (error) {
@@ -3962,11 +4185,11 @@ const threshold = {
   Temperature: { min: 36.5, max: 37.5 },
   DTX: { min: 80, max: 180 },
   Respiration: { min: 16, max: 20 },
-  Painscore:5,
+  Painscore: 5,
 };
 
 //แบบแก้ค่าเริ่มต้นที่ยังไม่ได้แก้ไขรายบุคคลทั้งระบบ ตรงตรงทุกอันถึงจะเปลี่ยน
-app.post('/update-default-threshold', async (req, res) => {
+app.post("/update-default-threshold", async (req, res) => {
   const { min, max, painscore } = req.body;
 
   try {
@@ -3980,21 +4203,47 @@ app.post('/update-default-threshold', async (req, res) => {
     const previousDefaultThreshold = { ...defaultThreshold.toObject() };
 
     // อัปเดตค่า Threshold ใหม่
-    defaultThreshold.SBP = { min: parseFloat(min.SBP), max: parseFloat(max.SBP) };
-    defaultThreshold.DBP = { min: parseFloat(min.DBP), max: parseFloat(max.DBP) };
-    defaultThreshold.PulseRate = { min: parseFloat(min.PulseRate), max: parseFloat(max.PulseRate) };
-    defaultThreshold.Temperature = { min: parseFloat(min.Temperature), max: parseFloat(max.Temperature) };
-    defaultThreshold.DTX = { min: parseFloat(min.DTX), max: parseFloat(max.DTX) };
-    defaultThreshold.Respiration = { min: parseFloat(min.Respiration), max: parseFloat(max.Respiration) };
+    defaultThreshold.SBP = {
+      min: parseFloat(min.SBP),
+      max: parseFloat(max.SBP),
+    };
+    defaultThreshold.DBP = {
+      min: parseFloat(min.DBP),
+      max: parseFloat(max.DBP),
+    };
+    defaultThreshold.PulseRate = {
+      min: parseFloat(min.PulseRate),
+      max: parseFloat(max.PulseRate),
+    };
+    defaultThreshold.Temperature = {
+      min: parseFloat(min.Temperature),
+      max: parseFloat(max.Temperature),
+    };
+    defaultThreshold.DTX = {
+      min: parseFloat(min.DTX),
+      max: parseFloat(max.DTX),
+    };
+    defaultThreshold.Respiration = {
+      min: parseFloat(min.Respiration),
+      max: parseFloat(max.Respiration),
+    };
     defaultThreshold.Painscore = painscore || 5;
 
     // บันทึก DefaultThreshold ใหม่
     await defaultThreshold.save();
 
     // อัปเดต UserThresholds ถ้าค่าปัจจุบันตรงกับ DefaultThreshold เก่า
-    const updatedFields = ['SBP', 'DBP', 'PulseRate', 'Temperature', 'DTX', 'Respiration', 'Painscore'];
+    const updatedFields = [
+      "SBP",
+      "DBP",
+      "PulseRate",
+      "Temperature",
+      "DTX",
+      "Respiration",
+      "Painscore",
+    ];
     const matchConditions = updatedFields.reduce((acc, field) => {
-      if (typeof previousDefaultThreshold[field] === 'object') {
+      if (typeof previousDefaultThreshold[field] === "object") {
         acc[`${field}.min`] = previousDefaultThreshold[field].min;
         acc[`${field}.max`] = previousDefaultThreshold[field].max;
       } else {
@@ -4003,34 +4252,40 @@ app.post('/update-default-threshold', async (req, res) => {
       return acc;
     }, {});
 
-    await UserThreshold.updateMany(
-      matchConditions,
-      {
-        $set: {
-          SBP: { min: parseFloat(min.SBP), max: parseFloat(max.SBP) },
-          DBP: { min: parseFloat(min.DBP), max: parseFloat(max.DBP) },
-          PulseRate: { min: parseFloat(min.PulseRate), max: parseFloat(max.PulseRate) },
-          Temperature: { min: parseFloat(min.Temperature), max: parseFloat(max.Temperature) },
-          DTX: { min: parseFloat(min.DTX), max: parseFloat(max.DTX) },
-          Respiration: { min: parseFloat(min.Respiration), max: parseFloat(max.Respiration) },
-          Painscore: painscore || 5,
+    await UserThreshold.updateMany(matchConditions, {
+      $set: {
+        SBP: { min: parseFloat(min.SBP), max: parseFloat(max.SBP) },
+        DBP: { min: parseFloat(min.DBP), max: parseFloat(max.DBP) },
+        PulseRate: {
+          min: parseFloat(min.PulseRate),
+          max: parseFloat(max.PulseRate),
         },
-      }
-    );
+        Temperature: {
+          min: parseFloat(min.Temperature),
+          max: parseFloat(max.Temperature),
+        },
+        DTX: { min: parseFloat(min.DTX), max: parseFloat(max.DTX) },
+        Respiration: {
+          min: parseFloat(min.Respiration),
+          max: parseFloat(max.Respiration),
+        },
+        Painscore: painscore || 5,
+      },
+    });
 
     res.json({
-      status: 'success',
-      message: 'Default threshold and matching user thresholds updated successfully',
+      status: "success",
+      message:
+        "Default threshold and matching user thresholds updated successfully",
     });
   } catch (error) {
-    console.error('Error updating default threshold:', error);
-    res.status(500).json({ status: 'error', message: 'Internal server error' });
+    console.error("Error updating default threshold:", error);
+    res.status(500).json({ status: "error", message: "Internal server error" });
   }
 });
 
-
 app.post("/update-threshold", async (req, res) => {
-  const { userId, min, max,painscore } = req.body;
+  const { userId, min, max, painscore } = req.body;
   try {
     let userThreshold = await UserThreshold.findOne({ user: userId });
     if (!userThreshold) {
@@ -4038,10 +4293,19 @@ app.post("/update-threshold", async (req, res) => {
     }
     userThreshold.SBP = { min: parseFloat(min.SBP), max: parseFloat(max.SBP) };
     userThreshold.DBP = { min: parseFloat(min.DBP), max: parseFloat(max.DBP) };
-    userThreshold.PulseRate = { min: parseFloat(min.PulseRate), max: parseFloat(max.PulseRate) };
-    userThreshold.Temperature = { min: parseFloat(min.Temperature), max: parseFloat(max.Temperature) };
+    userThreshold.PulseRate = {
+      min: parseFloat(min.PulseRate),
+      max: parseFloat(max.PulseRate),
+    };
+    userThreshold.Temperature = {
+      min: parseFloat(min.Temperature),
+      max: parseFloat(max.Temperature),
+    };
     userThreshold.DTX = { min: parseFloat(min.DTX), max: parseFloat(max.DTX) };
-    userThreshold.Respiration = { min: parseFloat(min.Respiration), max: parseFloat(max.Respiration) };
+    userThreshold.Respiration = {
+      min: parseFloat(min.Respiration),
+      max: parseFloat(max.Respiration),
+    };
     userThreshold.Painscore = parseFloat(painscore);
     await userThreshold.save();
     res.json({ status: "success" });
@@ -4051,25 +4315,25 @@ app.post("/update-threshold", async (req, res) => {
   }
 });
 
-
-
-app.post('/get-threshold', async (req, res) => {
+app.post("/get-threshold", async (req, res) => {
   const { userId } = req.body;
   try {
     const userThreshold = await UserThreshold.findOne({ user: userId });
 
     if (!userThreshold) {
-      res.status(404).json({ status: 'error', message: 'Threshold not found for the user' });
+      res
+        .status(404)
+        .json({ status: "error", message: "Threshold not found for the user" });
     } else {
       res.json({
-        status: 'success',
+        status: "success",
         min: {
           SBP: userThreshold.SBP.min,
           DBP: userThreshold.DBP.min,
           PulseRate: userThreshold.PulseRate.min,
           Temperature: userThreshold.Temperature.min,
           DTX: userThreshold.DTX.min,
-          Respiration: userThreshold.Respiration.min
+          Respiration: userThreshold.Respiration.min,
         },
         max: {
           SBP: userThreshold.SBP.max,
@@ -4077,14 +4341,14 @@ app.post('/get-threshold', async (req, res) => {
           PulseRate: userThreshold.PulseRate.max,
           Temperature: userThreshold.Temperature.max,
           DTX: userThreshold.DTX.max,
-          Respiration: userThreshold.Respiration.max
+          Respiration: userThreshold.Respiration.max,
         },
-        Painscore:userThreshold.Painscore,
+        Painscore: userThreshold.Painscore,
       });
     }
   } catch (error) {
-    console.error('Error retrieving threshold:', error);
-    res.status(500).json({ status: 'error', message: 'Internal server error' });
+    console.error("Error retrieving threshold:", error);
+    res.status(500).json({ status: "error", message: "Internal server error" });
   }
 });
 
@@ -4175,7 +4439,7 @@ app.post('/get-threshold', async (req, res) => {
 //     if (alerts.length > 0) {
 //       const alertMessage = `ค่า ${alerts.join(', ')} มีความผิดปกติ`;
 //       await Alert.create({ patientFormId: patientForm._id, alertMessage, user });
-    
+
 //       io.emit('newAlert', { alertMessage, patientFormId: patientForm._id });
 
 //     }
@@ -4187,14 +4451,15 @@ app.post('/get-threshold', async (req, res) => {
 //   }
 // });
 
-
 app.get("/getpatientform/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
     const patientForm = await PatientForm.findById(id).exec();
     if (!patientForm) {
-      return res.status(404).send({ status: "error", message: "Patient form not found" });
+      return res
+        .status(404)
+        .send({ status: "error", message: "Patient form not found" });
     }
 
     res.send({ status: "ok", patientForm });
@@ -4203,7 +4468,6 @@ app.get("/getpatientform/:id", async (req, res) => {
     res.status(500).send({ status: "error", message: error.message });
   }
 });
-
 
 // app.put("/updatepatientform/:id", async (req, res) => {
 //   const {
@@ -4299,7 +4563,7 @@ app.get("/getpatientform/:id", async (req, res) => {
 //     if (alerts.length > 0) {
 //       const alertMessage = `มีการแก้ไขการบันทึก แล้วค่า ${alerts.join(', ')} มีความผิดปกติ`;
 //       await Alert.create({ patientFormId: patientForm._id, alertMessage, user });
-      
+
 //       io.emit('newAlert', { alertMessage, patientFormId: patientForm._id });
 
 //     }
@@ -4310,8 +4574,6 @@ app.get("/getpatientform/:id", async (req, res) => {
 //     res.status(500).send({ status: "error", message: error.message });
 //   }
 // });
-
-
 
 // const checkAbnormalities = async (data, thresholds, patientFormId, userId, isUpdate = false) => {
 //   let alerts = [];
@@ -4374,12 +4636,12 @@ app.get("/getpatientform/:id", async (req, res) => {
 
 //     // ส่งการแจ้งเตือนผ่าน WebSocket
 //     io.emit('newAlert', {
-//       _id: alert._id, 
+//       _id: alert._id,
 //       alertMessage,
 //       patientFormId,
 //       user: { id: userId, name: user.name, surname: user.surname },
 //       createdAt: alert.createdAt, // ใช้ createdAt ของ alert เอง
-//       patientFormCreatedAt: patientForm?.createdAt || null, 
+//       patientFormCreatedAt: patientForm?.createdAt || null,
 //       patientFormUpdatedAt : patientForm?.updatedAt || null,
 //       updatedAt: alert.updatedAt,
 //       viewedBy: alert.viewedBy || [],
@@ -4425,7 +4687,6 @@ app.get("/getpatientform/:id", async (req, res) => {
 //   const patientForm = await PatientForm.findById(patientFormId).select("createdAt updatedAt");
 //   if (!patientForm) throw new Error("Patient form not found");
 
-  
 //   if (alerts.length === 0) {
 //     // ✅ กรณีค่าปกติ -> แจ้งเตือนว่ามีการเพิ่มบันทึกอาการ
 //     const alertMessage = `เพิ่มการบันทึกอาการ (ค่าปกติ)`;
@@ -4472,7 +4733,13 @@ app.get("/getpatientform/:id", async (req, res) => {
 //     viewedBy: alert.viewedBy || [],
 //   });
 // };
-const checkAbnormalities = async (data, thresholds, patientFormId, userId, isUpdate = false) => {
+const checkAbnormalities = async (
+  data,
+  thresholds,
+  patientFormId,
+  userId,
+  isUpdate = false
+) => {
   let alerts = [];
 
   const keyToLabel = {
@@ -4493,17 +4760,20 @@ const checkAbnormalities = async (data, thresholds, patientFormId, userId, isUpd
       }
     }
   };
-  checkThreshold(data.Temperature, 'Temperature');
-  checkThreshold(data.SBP, 'SBP');
-  checkThreshold(data.DBP, 'DBP');
-  checkThreshold(data.PulseRate, 'PulseRate');
-  checkThreshold(data.Respiration, 'Respiration');
-  if (data.Painscore > 5) alerts.push(keyToLabel["Painscore"] || "Painscore สูงกว่า 5");
-  checkThreshold(data.DTX, 'DTX');
-  const user = await User.findById(userId).select('name surname');
-  if (!user) throw new Error('User not found');
+  checkThreshold(data.Temperature, "Temperature");
+  checkThreshold(data.SBP, "SBP");
+  checkThreshold(data.DBP, "DBP");
+  checkThreshold(data.PulseRate, "PulseRate");
+  checkThreshold(data.Respiration, "Respiration");
+  if (data.Painscore > 5)
+    alerts.push(keyToLabel["Painscore"] || "Painscore สูงกว่า 5");
+  checkThreshold(data.DTX, "DTX");
+  const user = await User.findById(userId).select("name surname");
+  if (!user) throw new Error("User not found");
 
-  const patientForm = await PatientForm.findById(patientFormId).select("createdAt updatedAt");
+  const patientForm = await PatientForm.findById(patientFormId).select(
+    "createdAt updatedAt"
+  );
   if (!patientForm) throw new Error("Patient form not found");
 
   let alertType = "";
@@ -4511,10 +4781,14 @@ const checkAbnormalities = async (data, thresholds, patientFormId, userId, isUpd
 
   if (alerts.length === 0) {
     alertType = "normal";
-    alertMessage = isUpdate ? `แก้ไขการบันทึกอาการ (ค่าปกติ)` : `เพิ่มการบันทึกอาการ (ค่าปกติ)`;
+    alertMessage = isUpdate
+      ? `แก้ไขการบันทึกอาการ (ค่าปกติ)`
+      : `เพิ่มการบันทึกอาการ (ค่าปกติ)`;
   } else {
     alertType = "abnormal";
-    alertMessage = `${isUpdate ? "แก้ไขการบันทึกอาการ ค่า" : "เพิ่มการบันทึกอาการ ค่า"} ${alerts.join(', ')} มีความผิดปกติ`;
+    alertMessage = `${
+      isUpdate ? "แก้ไขการบันทึกอาการ ค่า" : "เพิ่มการบันทึกอาการ ค่า"
+    } ${alerts.join(", ")} มีความผิดปกติ`;
   }
 
   const existingAlert = await Alert.findOne({ patientFormId, alertType });
@@ -4523,10 +4797,15 @@ const checkAbnormalities = async (data, thresholds, patientFormId, userId, isUpd
     existingAlert.alertMessage = alertMessage;
     alert = await existingAlert.save();
   } else {
-    alert = await Alert.create({ patientFormId, alertMessage, user: userId, alertType });
+    alert = await Alert.create({
+      patientFormId,
+      alertMessage,
+      user: userId,
+      alertType,
+    });
   }
 
-  io.emit('newAlert', {
+  io.emit("newAlert", {
     _id: alert._id,
     alertMessage,
     patientFormId,
@@ -4539,7 +4818,6 @@ const checkAbnormalities = async (data, thresholds, patientFormId, userId, isUpd
     viewedBy: alert.viewedBy || [],
   });
 };
-
 
 app.post("/addpatientform", async (req, res) => {
   const {
@@ -4554,18 +4832,18 @@ app.post("/addpatientform", async (req, res) => {
     Painscore,
     request_detail,
     Recorder,
-    user
+    user,
   } = req.body;
 
   try {
     const patientForm = new PatientForm({
       Symptoms,
-      SBP: SBP.trim() !== '' ? SBP : null,
-      DBP: DBP.trim() !== '' ? DBP : null,
-      PulseRate: PulseRate.trim() !== '' ? PulseRate : null,
-      Temperature: Temperature.trim() !== '' ? Temperature : null,
-      DTX: DTX.trim() !== '' ? DTX : null,
-      Respiration: Respiration.trim() !== '' ? Respiration : null,
+      SBP: SBP.trim() !== "" ? SBP : null,
+      DBP: DBP.trim() !== "" ? DBP : null,
+      PulseRate: PulseRate.trim() !== "" ? PulseRate : null,
+      Temperature: Temperature.trim() !== "" ? Temperature : null,
+      DTX: DTX.trim() !== "" ? DTX : null,
+      Respiration: Respiration.trim() !== "" ? Respiration : null,
       LevelSymptom,
       Painscore,
       request_detail,
@@ -4633,7 +4911,7 @@ app.post("/addpatientform", async (req, res) => {
 //     await Alert.updateMany(
 //       { patientFormId: id }, // เงื่อนไขเพื่อค้นหา Alert ที่เกี่ยวข้อง
 //       { $set: { viewedBy: [],
-//         updatedAt: new Date() 
+//         updatedAt: new Date()
 //       } } // รีเซ็ตฟิลด์ viewedBy
 //     );
 
@@ -4649,13 +4927,12 @@ app.post("/addpatientform", async (req, res) => {
 //   }
 // });
 
-
 // app.get("/alerts", async (req, res) => {
 //   try {
 //     // ดึงข้อมูล alerts และเชื่อมโยงข้อมูล user และ patientForm
 //     const alerts = await Alert.find()
 //       .sort({ updatedAt: -1 })
-//       .populate("MPersonnel", "name surname") 
+//       .populate("MPersonnel", "name surname")
 //       .populate({
 //         path: 'user',
 //         select: 'name surname',
@@ -4669,11 +4946,11 @@ app.post("/addpatientform", async (req, res) => {
 //       const updatedAlerts = alerts.map(alert => ({
 //         ...alert.toObject(),
 //         patientFormId: alert.patientFormId?._id || alert.patientFormId || null,
-//         patientFormCreatedAt: alert.patientFormId?.createdAt || null, 
-//         patientFormUpdatedAt: alert.patientFormId?.updatedAt || null, 
-      
+//         patientFormCreatedAt: alert.patientFormId?.createdAt || null,
+//         patientFormUpdatedAt: alert.patientFormId?.updatedAt || null,
+
 //       }));
-  
+
 //       res.json({ alerts: updatedAlerts });
 //   } catch (error) {
 //     console.error("Error fetching alerts:", error);
@@ -4694,7 +4971,7 @@ app.put("/updatepatientform/:id", async (req, res) => {
     Painscore,
     request_detail,
     Recorder,
-    user
+    user,
   } = req.body;
 
   const { id } = req.params;
@@ -4703,12 +4980,12 @@ app.put("/updatepatientform/:id", async (req, res) => {
     // อัปเดตข้อมูล PatientForm
     const updatedFields = {
       Symptoms,
-      SBP: SBP !== '' ? SBP : null,
-      DBP: DBP !== '' ? DBP : null,
-      PulseRate: PulseRate !== '' ? PulseRate : null,
-      Temperature: Temperature !== '' ? Temperature : null,
-      DTX: DTX !== '' ? DTX : null,
-      Respiration: Respiration !== '' ? Respiration : null,
+      SBP: SBP !== "" ? SBP : null,
+      DBP: DBP !== "" ? DBP : null,
+      PulseRate: PulseRate !== "" ? PulseRate : null,
+      Temperature: Temperature !== "" ? Temperature : null,
+      DTX: DTX !== "" ? DTX : null,
+      Respiration: Respiration !== "" ? Respiration : null,
       LevelSymptom,
       Painscore,
       request_detail,
@@ -4717,18 +4994,24 @@ app.put("/updatepatientform/:id", async (req, res) => {
       updatedAt: new Date(),
     };
 
-    Object.keys(updatedFields).forEach(key => updatedFields[key] === undefined && delete updatedFields[key]);
+    Object.keys(updatedFields).forEach(
+      (key) => updatedFields[key] === undefined && delete updatedFields[key]
+    );
 
-    const patientForm = await PatientForm.findByIdAndUpdate(id, updatedFields, { new: true });
+    const patientForm = await PatientForm.findByIdAndUpdate(id, updatedFields, {
+      new: true,
+    });
 
     if (!patientForm) {
-      return res.status(404).send({ status: "error", message: "Patient form not found" });
+      return res
+        .status(404)
+        .send({ status: "error", message: "Patient form not found" });
     }
 
     console.log(`Deleting all alerts related to patientFormId: ${id}`);
     await Alert.deleteMany({ patientFormId: id });
 
-    io.emit('deletedAlert', { patientFormId: id });
+    io.emit("deletedAlert", { patientFormId: id });
 
     const userThreshold = await UserThreshold.findOne({ user });
     const thresholds = userThreshold || threshold;
@@ -4749,25 +5032,25 @@ app.get("/alerts", async (req, res) => {
     let query = {};
 
     if (userId) {
-      query = { MPersonnel: { $ne: userId } }; 
+      query = { MPersonnel: { $ne: userId } };
     }
     const alerts = await Alert.find(query)
       .sort({ createdAt: -1 })
-      .populate("MPersonnel", "nametitle name surname") 
+      .populate("MPersonnel", "nametitle name surname")
       .populate({
-        path: 'user',
-        select: 'name surname',
-        match: { deletedAt: null } 
+        path: "user",
+        select: "name surname",
+        match: { deletedAt: null },
       })
       .populate({
-        path: 'patientFormId', 
-        select: 'createdAt updatedAt' 
+        path: "patientFormId",
+        select: "createdAt updatedAt",
       });
 
     //   const updatedAlerts = alerts.map(alert => ({
     //   _id: alert._id,
     //   alertMessage: alert.alertMessage,
-    //   alertType: alert.alertType || "unknown", 
+    //   alertType: alert.alertType || "unknown",
     //   createdAt: alert.createdAt,
     //   createdAtAss: alert.createdAtAss,
     //   updatedAt: alert.updatedAt,
@@ -4776,40 +5059,46 @@ app.get("/alerts", async (req, res) => {
     //   patientFormUpdatedAt: alert.patientFormId?.updatedAt || null,
     //   user: alert.user ? { id: alert.user._id, name: alert.user.name, surname: alert.user.surname } : null,
     //   MPersonnel: alert.MPersonnel
-    //     ? { 
-    //         id: alert.MPersonnel._id, 
-    //         nametitle: alert.MPersonnel.nametitle, 
-    //         name: alert.MPersonnel.name, 
-    //         surname: alert.MPersonnel.surname 
+    //     ? {
+    //         id: alert.MPersonnel._id,
+    //         nametitle: alert.MPersonnel.nametitle,
+    //         name: alert.MPersonnel.name,
+    //         surname: alert.MPersonnel.surname
     //       }
     //     : null,
     //   viewedBy: alert.viewedBy
     // }));
     // แปลงข้อมูลที่ดึงมา
-    const updatedAlerts = alerts.map(alert => {
+    const updatedAlerts = alerts.map((alert) => {
       // ตรวจสอบ MPersonnel ว่ามีค่าหรือไม่
       const MPersonnel = alert.MPersonnel
-        ? { 
-            id: alert.MPersonnel._id, 
-            nametitle: alert.MPersonnel.nametitle, 
-            name: alert.MPersonnel.name, 
-            surname: alert.MPersonnel.surname 
+        ? {
+            id: alert.MPersonnel._id,
+            nametitle: alert.MPersonnel.nametitle,
+            name: alert.MPersonnel.name,
+            surname: alert.MPersonnel.surname,
           }
         : null; // กำหนดเป็น null ถ้าไม่มีค่า MPersonnel
 
       return {
         _id: alert._id,
         alertMessage: alert.alertMessage,
-        alertType: alert.alertType || "unknown", 
+        alertType: alert.alertType || "unknown",
         createdAt: alert.createdAt,
         createdAtAss: alert.createdAtAss,
         updatedAt: alert.updatedAt,
         patientFormId: alert.patientFormId?._id || alert.patientFormId || null,
         patientFormCreatedAt: alert.patientFormId?.createdAt || null,
         patientFormUpdatedAt: alert.patientFormId?.updatedAt || null,
-        user: alert.user ? { id: alert.user._id, name: alert.user.name, surname: alert.user.surname } : null,
+        user: alert.user
+          ? {
+              id: alert.user._id,
+              name: alert.user.name,
+              surname: alert.user.surname,
+            }
+          : null,
         MPersonnel,
-        viewedBy: alert.viewedBy
+        viewedBy: alert.viewedBy,
       };
     });
 
@@ -4837,13 +5126,14 @@ app.put("/alerts/:id/viewed", async (req, res) => {
   }
 });
 
-
 app.put("/alerts/mark-all-viewed", async (req, res) => {
   try {
     const userId = req.body.userId;
 
     if (!userId) {
-      return res.status(400).json({ status: "error", message: "User ID is required." });
+      return res
+        .status(400)
+        .json({ status: "error", message: "User ID is required." });
     }
 
     await Alert.updateMany(
@@ -4851,59 +5141,58 @@ app.put("/alerts/mark-all-viewed", async (req, res) => {
       { $addToSet: { viewedBy: userId } } // Add userId to viewedBy array
     );
 
-    res.json({ status: "success", message: "All alerts marked as viewed by the user." });
+    res.json({
+      status: "success",
+      message: "All alerts marked as viewed by the user.",
+    });
   } catch (error) {
     console.error("Error marking all alerts as viewed:", error);
     res.status(500).json({ status: "error", message: error.message });
   }
 });
 
-app.put('/alerts/mark-all-viewed-by-type', async (req, res) => {
+app.put("/alerts/mark-all-viewed-by-type", async (req, res) => {
   const { userId, type } = req.body;
 
   try {
     let alertsToUpdate = [];
 
-    if (type === 'all') {
+    if (type === "all") {
       alertsToUpdate = await Alert.find({
         viewedBy: { $ne: userId },
       });
-    } else if (type === 'assessment') {
+    } else if (type === "assessment") {
       // กรองเฉพาะประเภท "assessment" และไม่ใช่ "เคสฉุกเฉิน"
       alertsToUpdate = await Alert.find({
-        alertType: 'assessment',
-        alertMessage: { $ne: 'เคสฉุกเฉิน' },
+        alertType: "assessment",
+        alertMessage: { $ne: "เคสฉุกเฉิน" },
         viewedBy: { $ne: userId },
       });
-    } else if (type === 'abnormal') {
+    } else if (type === "abnormal") {
       // กรองเฉพาะประเภท "abnormal" หรือข้อความเป็น "เคสฉุกเฉิน"
       alertsToUpdate = await Alert.find({
-        $or: [
-          { alertType: 'abnormal' },
-          { alertMessage: 'เคสฉุกเฉิน' },
-        ],
+        $or: [{ alertType: "abnormal" }, { alertMessage: "เคสฉุกเฉิน" }],
         viewedBy: { $ne: userId },
       });
-    } else if (type === 'normal') {
+    } else if (type === "normal") {
       // กรองเฉพาะประเภท "normal"
       alertsToUpdate = await Alert.find({
-        alertType: 'normal',
+        alertType: "normal",
         viewedBy: { $ne: userId },
       });
     }
 
     await Alert.updateMany(
-      { _id: { $in: alertsToUpdate.map(alert => alert._id) } },
+      { _id: { $in: alertsToUpdate.map((alert) => alert._id) } },
       { $push: { viewedBy: userId } }
     );
 
-    res.status(200).json({ message: 'All selected alerts marked as viewed' });
+    res.status(200).json({ message: "All selected alerts marked as viewed" });
   } catch (error) {
-    console.error('Error marking alerts as viewed:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error marking alerts as viewed:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
-
 
 //นับความถี่อาการ
 app.get("/countSymptoms/:userId/:formId", async (req, res) => {
@@ -4913,13 +5202,12 @@ app.get("/countSymptoms/:userId/:formId", async (req, res) => {
       {
         $match: {
           user: new mongoose.Types.ObjectId(userId),
-          _id: { $lte: new mongoose.Types.ObjectId(formId) } // นับรวมถึงอันที่เข้ามา ถ้าไม่นับ lt
-        }
+          _id: { $lte: new mongoose.Types.ObjectId(formId) }, // นับรวมถึงอันที่เข้ามา ถ้าไม่นับ lt
+        },
       },
       { $unwind: "$Symptoms" },
       { $group: { _id: "$Symptoms", count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-
+      { $sort: { count: -1 } },
     ]);
 
     res.send({ status: "ok", symptomsCount });
@@ -4928,10 +5216,6 @@ app.get("/countSymptoms/:userId/:formId", async (req, res) => {
     res.status(500).send({ status: "error" });
   }
 });
-
-
-
-
 
 //เอาบันทึกคนนี้้มาทั้งหมด
 app.get("/getpatientforms/:userId", async (req, res) => {
@@ -4945,7 +5229,6 @@ app.get("/getpatientforms/:userId", async (req, res) => {
     res.send({ status: "error" });
   }
 });
-
 
 //ฝั่งแพทย์
 // เอาอาการที่เลือกมาแสดง
@@ -4961,8 +5244,6 @@ app.get("/getpatientformsone/:id", async (req, res) => {
   }
 });
 
-
-
 //ดึงข้อมูลกราฟทั้งหมด
 app.get("/getPatientData/:userId/:formId", async (req, res) => {
   const { userId, formId } = req.params;
@@ -4976,22 +5257,24 @@ app.get("/getPatientData/:userId/:formId", async (req, res) => {
 
     const patientForms = await PatientForm.find({
       user: userId,
-      createdAt: { $lte: patientForm.createdAt }
+      createdAt: { $lte: patientForm.createdAt },
     })
-      .populate('user')
+      .populate("user")
       .sort({ createdAt: -1 });
 
-    const PatientData = patientForms.map(form => ({
-      name: form.user.name,
-      SBP: form.SBP,
-      DBP: form.DBP,
-      Temperature: form.Temperature,
-      Painscore: form.Painscore,
-      DTX: form.DTX,
-      PulseRate: form.PulseRate,
-      Respiration: form.Respiration,
-      createdAt: form.createdAt
-    })).reverse();
+    const PatientData = patientForms
+      .map((form) => ({
+        name: form.user.name,
+        SBP: form.SBP,
+        DBP: form.DBP,
+        Temperature: form.Temperature,
+        Painscore: form.Painscore,
+        DTX: form.DTX,
+        PulseRate: form.PulseRate,
+        Respiration: form.Respiration,
+        createdAt: form.createdAt,
+      }))
+      .reverse();
 
     res.send({ status: "ok", data: PatientData });
   } catch (error) {
@@ -5013,24 +5296,24 @@ app.get("/getPatientData/:userId/:formId", async (req, res) => {
 //     const assessment = await Assessment.create({
 //       suggestion, detail, status_name, PPS, MPersonnel, PatientForm: patientForm._id,
 //     });
-    
+
 //     const createdAtAss = assessment.createdAt;
 //     let alert;
 //     if (status_name === 'เคสฉุกเฉิน') {
 //       const alertMessage = `เป็นเคสฉุกเฉิน`;
 
 //       const { _id: userId, name, surname } = patientForm.user;
-      
+
 //       alert = await Alert.create({
 //         patientFormId: patientForm._id,
 //         alertMessage,
 //         user: patientForm.user._id,
-//         createdAtAss: new Date() 
+//         createdAtAss: new Date()
 //       });
-      
-//       io.emit('newAlert', { 
-//         _id: alert._id, 
-//         alertMessage, 
+
+//       io.emit('newAlert', {
+//         _id: alert._id,
+//         alertMessage,
 //         patientFormId: patientForm._id,
 //         createdAt: alert.createdAt, // ใช้ createdAt ของ alert เอง
 //         patientFormCreatedAt: patientForm?.createdAt || null,
@@ -5041,7 +5324,6 @@ app.get("/getPatientData/:userId/:formId", async (req, res) => {
 //         viewedBy:[]});
 //     }
 
-   
 //     res.send({ status: "ok" });
 //   } catch (error) {
 //     console.error("Error:", error);
@@ -5053,24 +5335,40 @@ app.get("/getPatientData/:userId/:formId", async (req, res) => {
 //   }
 // });
 
-app.post("/addassessment", async (req, res) => { 
-  const { suggestion, detail, status_name, PPS, MPersonnel, PatientForm: patientFormId } = req.body;
+app.post("/addassessment", async (req, res) => {
+  const {
+    suggestion,
+    detail,
+    status_name,
+    PPS,
+    MPersonnel,
+    PatientForm: patientFormId,
+  } = req.body;
 
   try {
-    const patientForm = await PatientForm.findById(patientFormId).populate('user').exec();
+    const patientForm = await PatientForm.findById(patientFormId)
+      .populate("user")
+      .exec();
 
     if (!patientForm) {
-      return res.status(404).send({ status: "error", message: "PatientForm not found." });
+      return res
+        .status(404)
+        .send({ status: "error", message: "PatientForm not found." });
     }
 
     // ลบ Alert ทั้งหมดที่เกี่ยวข้องกับ patientFormId ถ้าไม่อยากให้ลบเอาอันนี้ออก
     await Alert.deleteMany({
-        patientFormId: patientForm._id
+      patientFormId: patientForm._id,
     });
-    io.emit('deletedAlert', { patientFormId: patientForm._id});
+    io.emit("deletedAlert", { patientFormId: patientForm._id });
 
     const assessment = await Assessment.create({
-      suggestion, detail, status_name, PPS, MPersonnel, PatientForm: patientForm._id,
+      suggestion,
+      detail,
+      status_name,
+      PPS,
+      MPersonnel,
+      PatientForm: patientForm._id,
     });
 
     const createdAtAss = assessment.createdAt;
@@ -5078,7 +5376,7 @@ app.post("/addassessment", async (req, res) => {
     let alertType = "";
     if (status_name === "เคสฉุกเฉิน") {
       alertMessage = "เคสฉุกเฉิน";
-      alertType = "assessment"; 
+      alertType = "assessment";
     } else {
       alertMessage = status_name;
       alertType = "assessment";
@@ -5087,36 +5385,41 @@ app.post("/addassessment", async (req, res) => {
     let alert;
     if (alertMessage) {
       const { _id: userId, name, surname } = patientForm.user;
-      
+
       alert = await Alert.create({
         patientFormId: patientForm._id,
         alertMessage,
         user: patientForm.user._id,
         MPersonnel,
         alertType,
-        createdAtAss: new Date() 
+        createdAtAss: new Date(),
       });
 
       const populatedAlert = await Alert.findById(alert._id)
         .populate("MPersonnel", "nametitle name surname")
         .exec();
-      
-      io.emit('newAlert', { 
-        _id: alert._id, 
-        alertMessage, 
+
+      io.emit("newAlert", {
+        _id: alert._id,
+        alertMessage,
         alertType,
         patientFormId: patientForm._id,
-        createdAt: alert.createdAt, 
+        createdAt: alert.createdAt,
         patientFormCreatedAt: patientForm?.createdAt || null,
-        patientFormUpdatedAt : patientForm?.updatedAt || null,
-        createdAtAss ,
+        patientFormUpdatedAt: patientForm?.updatedAt || null,
+        createdAtAss,
         updatedAt: alert.updatedAt,
-        user: { id: userId, name, surname } ,
+        user: { id: userId, name, surname },
         MPersonnel: populatedAlert.MPersonnel
-          ? { id: populatedAlert.MPersonnel._id, nametitle: populatedAlert.MPersonnel.nametitle, name: populatedAlert.MPersonnel.name, surname: populatedAlert.MPersonnel.surname }
-          : null, 
+          ? {
+              id: populatedAlert.MPersonnel._id,
+              nametitle: populatedAlert.MPersonnel.nametitle,
+              name: populatedAlert.MPersonnel.name,
+              surname: populatedAlert.MPersonnel.surname,
+            }
+          : null,
         viewedBy: [],
-        excludeMPersonnel: MPersonnel 
+        excludeMPersonnel: MPersonnel,
       });
     }
 
@@ -5124,9 +5427,19 @@ app.post("/addassessment", async (req, res) => {
   } catch (error) {
     console.error("Error:", error);
     if (error.code === 11000 && error.keyPattern.PatientForm) {
-      res.status(400).send({ status: "error", message: "PatientForm already has an assessment." });
+      res
+        .status(400)
+        .send({
+          status: "error",
+          message: "PatientForm already has an assessment.",
+        });
     } else {
-      res.status(500).send({ status: "error", message: "An error occurred while adding assessment." });
+      res
+        .status(500)
+        .send({
+          status: "error",
+          message: "An error occurred while adding assessment.",
+        });
     }
   }
 });
@@ -5162,7 +5475,7 @@ app.post("/addassessment", async (req, res) => {
 //     // ตรวจสอบว่ามีการเปลี่ยนแปลงสถานะจาก 'เคสฉุกเฉิน'
 //     if (previousStatus === 'เคสฉุกเฉิน' && status_name !== 'เคสฉุกเฉิน') {
 //       console.log(`Deleting alert for patientFormId: ${assessment.PatientForm._id} with message: 'เป็นเคสฉุกเฉิน'`);
-      
+
 //       // ลบ alert ที่เกี่ยวข้อง
 //       const deleteResult = await Alert.deleteOne({
 //         patientFormId: assessment.PatientForm._id,
@@ -5188,18 +5501,18 @@ app.post("/addassessment", async (req, res) => {
 //         patientFormId: assessment.PatientForm._id,
 //         alertMessage,
 //         user: assessment.PatientForm.user._id,
-//         createdAtAss: new Date() 
+//         createdAtAss: new Date()
 //       });
 
-//       io.emit('newAlert', { 
-//         _id: alert._id, 
-//         alertMessage, 
+//       io.emit('newAlert', {
+//         _id: alert._id,
+//         alertMessage,
 //         patientFormId: assessment.PatientForm._id ,
-//         viewedBy:[], 
+//         viewedBy:[],
 //         user: { id: assessment.PatientForm.user._id, name: user.name, surname: user.surname },
 //         createdAtAss: alert.createdAt,
 //         createdAt: alert.createdAt, // ใช้ createdAt ของ alert เอง
-//         patientFormCreatedAt: patientFormCreatedAt || null, 
+//         patientFormCreatedAt: patientFormCreatedAt || null,
 //         patientFormUpdatedAt : patientFormUpdatedAt || null,
 //         updatedAt: alert.updatedAt,
 //       });
@@ -5220,10 +5533,14 @@ app.put("/updateassessment/:id", async (req, res) => {
   const { suggestion, detail, status_name, PPS, MPersonnel } = req.body;
 
   try {
-    const assessment = await Assessment.findById(id).populate('PatientForm').exec();
+    const assessment = await Assessment.findById(id)
+      .populate("PatientForm")
+      .exec();
 
     if (!assessment) {
-      return res.status(404).send({ status: "error", message: "Assessment not found." });
+      return res
+        .status(404)
+        .send({ status: "error", message: "Assessment not found." });
     }
 
     const previousStatus = assessment.status_name;
@@ -5243,17 +5560,24 @@ app.put("/updateassessment/:id", async (req, res) => {
     assessment.status_name = status_name;
     assessment.PPS = PPS;
 
-    console.log(`Deleting alert for patientFormId: ${assessment.PatientForm._id} with alertType: 'assessment'`);
+    console.log(
+      `Deleting alert for patientFormId: ${assessment.PatientForm._id} with alertType: 'assessment'`
+    );
     await Alert.deleteMany({
       patientFormId: assessment.PatientForm._id,
-      alertType: 'assessment'
+      alertType: "assessment",
     });
 
-    io.emit('deletedAlert', { patientFormId: assessment.PatientForm._id, alertType: 'assessment' });
+    io.emit("deletedAlert", {
+      patientFormId: assessment.PatientForm._id,
+      alertType: "assessment",
+    });
 
-    let alertMessage = status_name; 
-    const user = await User.findById(assessment.PatientForm.user._id).select('name surname');
-    if (!user) throw new Error('User not found');
+    let alertMessage = status_name;
+    const user = await User.findById(assessment.PatientForm.user._id).select(
+      "name surname"
+    );
+    if (!user) throw new Error("User not found");
 
     let alert = await Alert.create({
       patientFormId: assessment.PatientForm._id,
@@ -5261,46 +5585,62 @@ app.put("/updateassessment/:id", async (req, res) => {
       user: assessment.PatientForm.user._id,
       MPersonnel,
       createdAtAss: new Date(),
-      alertType: 'assessment' 
+      alertType: "assessment",
     });
     const populatedAlert = await Alert.findById(alert._id)
-    .populate("MPersonnel", "nametitle name surname") 
-    .exec();
+      .populate("MPersonnel", "nametitle name surname")
+      .exec();
 
-
-    io.emit('newAlert', { 
-      _id: alert._id, 
-      alertMessage, 
-      alertType: 'assessment',
+    io.emit("newAlert", {
+      _id: alert._id,
+      alertMessage,
+      alertType: "assessment",
       patientFormId: assessment.PatientForm._id,
-      patientFormCreatedAt: assessment.PatientForm.createdAt || null, 
-      patientFormUpdatedAt : assessment.PatientForm.updatedAt || null,
+      patientFormCreatedAt: assessment.PatientForm.createdAt || null,
+      patientFormUpdatedAt: assessment.PatientForm.updatedAt || null,
       createdAt: alert.createdAt,
       createdAtAss: alert.createdAt,
       updatedAt: alert.updatedAt,
-      user: { id: assessment.PatientForm.user._id, name: user.name, surname: user.surname },
+      user: {
+        id: assessment.PatientForm.user._id,
+        name: user.name,
+        surname: user.surname,
+      },
       MPersonnel: populatedAlert.MPersonnel
-      ? { id: populatedAlert.MPersonnel._id, nametitle: populatedAlert.MPersonnel.nametitle, name: populatedAlert.MPersonnel.name, surname: populatedAlert.MPersonnel.surname }
-      : null,
-      viewedBy: [] ,
-      excludeMPersonnel: MPersonnel 
+        ? {
+            id: populatedAlert.MPersonnel._id,
+            nametitle: populatedAlert.MPersonnel.nametitle,
+            name: populatedAlert.MPersonnel.name,
+            surname: populatedAlert.MPersonnel.surname,
+          }
+        : null,
+      viewedBy: [],
+      excludeMPersonnel: MPersonnel,
     });
 
     await assessment.save();
 
-    res.send({ status: "ok", message: "Assessment updated successfully and alert recreated." });
+    res.send({
+      status: "ok",
+      message: "Assessment updated successfully and alert recreated.",
+    });
   } catch (error) {
     console.error("Error:", error);
-    res.status(500).send({ status: "error", message: "An error occurred while updating assessment." });
+    res
+      .status(500)
+      .send({
+        status: "error",
+        message: "An error occurred while updating assessment.",
+      });
   }
 });
 
 app.get("/assessment/:assessmentId", async (req, res) => {
-  const { assessmentId } = req.params; 
+  const { assessmentId } = req.params;
 
   try {
     const assessment = await Assessment.findById(assessmentId)
-      .populate("history.updatedBy", "name surname") 
+      .populate("history.updatedBy", "name surname")
       .exec();
 
     if (!assessment) {
@@ -5314,7 +5654,6 @@ app.get("/assessment/:assessmentId", async (req, res) => {
   }
 });
 
-
 app.get("/searchassessment", async (req, res) => {
   try {
     const { keyword } = req.query; // เรียกใช้ keyword ที่ส่งมาจาก query parameters
@@ -5324,18 +5663,18 @@ app.get("/searchassessment", async (req, res) => {
     const users = await User.aggregate([
       {
         $addFields: {
-          fullname: { $concat: ["$name", " ", "$surname"] }
-        }
+          fullname: { $concat: ["$name", " ", "$surname"] },
+        },
       },
       {
         $match: {
           $or: [
             { name: { $regex: regex } },
             { surname: { $regex: regex } },
-            { fullname: { $regex: regex } }
-          ]
-        }
-      }
+            { fullname: { $regex: regex } },
+          ],
+        },
+      },
     ]);
 
     const medicalInfos = await MedicalInformation.find({
@@ -5347,10 +5686,12 @@ app.get("/searchassessment", async (req, res) => {
     });
 
     // Combine user IDs from both searches
-    const userIdsFromUsers = users.map(user => user._id);
-    const userIdsFromMedicalInfos = medicalInfos.map(info => info.user);
+    const userIdsFromUsers = users.map((user) => user._id);
+    const userIdsFromMedicalInfos = medicalInfos.map((info) => info.user);
 
-    const uniqueUserIds = [...new Set([...userIdsFromUsers, ...userIdsFromMedicalInfos])];
+    const uniqueUserIds = [
+      ...new Set([...userIdsFromUsers, ...userIdsFromMedicalInfos]),
+    ];
 
     const result = await User.find({ _id: { $in: uniqueUserIds } });
 
@@ -5365,15 +5706,12 @@ app.get("/searchassessment", async (req, res) => {
 app.get("/getassessment/:Patientid", async (req, res) => {
   const { Patientid } = req.params;
   try {
-
     const Assessmentdata = await Assessment.findOne({ PatientForm: Patientid });
     if (!Assessmentdata) {
-      return res
-        .status(404)
-        .send({
-          status: "error",
-          message: "not found for this user",
-        });
+      return res.status(404).send({
+        status: "error",
+        message: "not found for this user",
+      });
     }
     res.send({ status: "ok", data: Assessmentdata });
   } catch (error) {
@@ -5394,7 +5732,7 @@ app.get("/allAssessment", async (req, res) => {
 
 app.get("/allAssessments", async (req, res) => {
   try {
-    const assessments = await Assessment.find().populate('MPersonnel');
+    const assessments = await Assessment.find().populate("MPersonnel");
     res.send({ status: "ok", data: assessments });
   } catch (error) {
     console.log(error);
@@ -5402,18 +5740,17 @@ app.get("/allAssessments", async (req, res) => {
 });
 
 // เเอาไปเช็คว่าจบการรักษายัง
-app.get('/assessments', async (req, res) => {
+app.get("/assessments", async (req, res) => {
   try {
     const { patientFormIds } = req.query;
     const assessments = await Assessment.find({
-      PatientForm: { $in: patientFormIds }
-    }).populate('PatientForm');
+      PatientForm: { $in: patientFormIds },
+    }).populate("PatientForm");
     res.json({ data: assessments });
   } catch (error) {
-    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูล Assessments' });
+    res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูล Assessments" });
   }
 });
-
 
 // --------------------------
 //ค้นหาผู้ป่วย
@@ -5428,8 +5765,8 @@ app.get("/searchuser", async (req, res) => {
     const result = await User.aggregate([
       {
         $addFields: {
-          fullname: { $concat: ["$name", " ", "$surname"] }
-        }
+          fullname: { $concat: ["$name", " ", "$surname"] },
+        },
       },
       {
         $match: {
@@ -5437,10 +5774,10 @@ app.get("/searchuser", async (req, res) => {
             { username: { $regex: regex } },
             { name: { $regex: regex } },
             { surname: { $regex: regex } },
-            { fullname: { $regex: regex } }
-          ]
-        }
-      }
+            { fullname: { $regex: regex } },
+          ],
+        },
+      },
     ]);
 
     res.json({ status: "ok", data: result });
@@ -5448,7 +5785,6 @@ app.get("/searchuser", async (req, res) => {
     res.json({ status: error.message });
   }
 });
-
 
 //ลบผู้ป่วย
 
@@ -5490,7 +5826,10 @@ app.delete("/deleteUser/:id", async (req, res) => {
     }
 
     // ตรวจสอบรหัสผ่าน Admin
-    const isPasswordCorrect = await bcrypt.compare(adminPassword, admin.password); // Assuming passwords are hashed
+    const isPasswordCorrect = await bcrypt.compare(
+      adminPassword,
+      admin.password
+    ); // Assuming passwords are hashed
     if (!isPasswordCorrect) {
       return res.status(401).json({
         status: "Unauthorized",
@@ -5509,7 +5848,6 @@ app.delete("/deleteUser/:id", async (req, res) => {
       },
       { new: true }
     );
-
 
     if (result) {
       res.json({ status: "OK", data: "ลบข้อมูลผู้ป่วยสำเร็จ" });
@@ -5609,7 +5947,6 @@ app.post("/updateuser/:id", async (req, res) => {
   }
 });
 
-
 // app.get("/getadmin/:id", async (req, res) => {
 //   const { id } = req.params;
 
@@ -5643,7 +5980,6 @@ app.post("/updatenameadmin/:id", async (req, res) => {
     res.status(500).json({ error: "มีข้อผิดพลาดในการอัปเดตชื่อผู้ใช้" });
   }
 });
-
 
 //----------------------------------------------
 
@@ -5788,10 +6124,12 @@ app.post("/updatemedicalinformation/:id", upload1, async (req, res) => {
 
     const bucket = admin.storage().bucket();
 
-  if (req.files["fileP"] && req.files["fileP"][0]) {
+    if (req.files["fileP"] && req.files["fileP"][0]) {
       const file = req.files["fileP"][0];
-      const originalName  = Buffer.from(file.originalname, "latin1").toString("utf8");// เก็บชื่อไฟล์ดั้งเดิม
-      const fileName = Date.now() + '-' + originalName;
+      const originalName = Buffer.from(file.originalname, "latin1").toString(
+        "utf8"
+      ); // เก็บชื่อไฟล์ดั้งเดิม
+      const fileName = Date.now() + "-" + originalName;
       const fileRef = bucket.file(fileName);
       const fileStream = fileRef.createWriteStream({
         metadata: { contentType: file.mimetype },
@@ -5799,20 +6137,24 @@ app.post("/updatemedicalinformation/:id", upload1, async (req, res) => {
 
       fileStream.end(file.buffer);
       await new Promise((resolve, reject) => {
-        fileStream.on('finish', () => {
-          filePresent = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+        fileStream.on("finish", () => {
+          filePresent = `https://firebasestorage.googleapis.com/v0/b/${
+            bucket.name
+          }/o/${encodeURIComponent(fileName)}?alt=media`;
           filePresentName = originalName; // เก็บชื่อไฟล์ดั้งเดิม
           resolve();
         });
-        fileStream.on('error', reject);
+        fileStream.on("error", reject);
       });
     }
 
     // Upload fileM to Firebase Storage (if exists)
     if (req.files["fileM"] && req.files["fileM"][0]) {
       const file = req.files["fileM"][0];
-      const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
-      const fileName = Date.now() + '-' + originalName;
+      const originalName = Buffer.from(file.originalname, "latin1").toString(
+        "utf8"
+      );
+      const fileName = Date.now() + "-" + originalName;
       const fileRef = bucket.file(fileName);
       const fileStream = fileRef.createWriteStream({
         metadata: { contentType: file.mimetype },
@@ -5820,20 +6162,24 @@ app.post("/updatemedicalinformation/:id", upload1, async (req, res) => {
 
       fileStream.end(file.buffer);
       await new Promise((resolve, reject) => {
-        fileStream.on('finish', () => {
-          fileManage = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+        fileStream.on("finish", () => {
+          fileManage = `https://firebasestorage.googleapis.com/v0/b/${
+            bucket.name
+          }/o/${encodeURIComponent(fileName)}?alt=media`;
           fileManageName = originalName;
           resolve();
         });
-        fileStream.on('error', reject);
+        fileStream.on("error", reject);
       });
     }
 
     // Upload filePhy to Firebase Storage (if exists)
     if (req.files["filePhy"] && req.files["filePhy"][0]) {
       const file = req.files["filePhy"][0];
-      const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
-      const fileName = Date.now() + '-' + originalName;
+      const originalName = Buffer.from(file.originalname, "latin1").toString(
+        "utf8"
+      );
+      const fileName = Date.now() + "-" + originalName;
       const fileRef = bucket.file(fileName);
       const fileStream = fileRef.createWriteStream({
         metadata: { contentType: file.mimetype },
@@ -5841,12 +6187,14 @@ app.post("/updatemedicalinformation/:id", upload1, async (req, res) => {
 
       fileStream.end(file.buffer);
       await new Promise((resolve, reject) => {
-        fileStream.on('finish', () => {
-          filePhychosocial = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+        fileStream.on("finish", () => {
+          filePhychosocial = `https://firebasestorage.googleapis.com/v0/b/${
+            bucket.name
+          }/o/${encodeURIComponent(fileName)}?alt=media`;
           filePhychosocialName = originalName;
           resolve();
         });
-        fileStream.on('error', reject);
+        fileStream.on("error", reject);
       });
     }
 
@@ -5856,28 +6204,29 @@ app.post("/updatemedicalinformation/:id", upload1, async (req, res) => {
     }
 
     // ตรวจสอบว่ามีการอัปโหลดไฟล์ใหม่หรือไม่
-    const updatedMedicalInformation = await MedicalInformation.findByIdAndUpdate(
-      id,
-      {
-        HN,
-        AN,
-        Date_Admit,
-        Date_DC,
-        Diagnosis,
-        Chief_complaint,
-        Present_illness,
-        Phychosocial_assessment,
-        Management_plan,
-        fileP: filePresent || oldMedicalInfo.fileP,
-        filePName: filePresentName || oldMedicalInfo.filePName, // อัปเดตชื่อไฟล์ดั้งเดิม
-        fileM: fileManage || oldMedicalInfo.fileM,
-        fileMName: fileManageName || oldMedicalInfo.fileMName,
-        filePhy: filePhychosocial || oldMedicalInfo.filePhy,
-        filePhyName: filePhychosocialName || oldMedicalInfo.filePhyName,
-        selectedPersonnel,
-      },
-      { new: true }
-    );
+    const updatedMedicalInformation =
+      await MedicalInformation.findByIdAndUpdate(
+        id,
+        {
+          HN,
+          AN,
+          Date_Admit,
+          Date_DC,
+          Diagnosis,
+          Chief_complaint,
+          Present_illness,
+          Phychosocial_assessment,
+          Management_plan,
+          fileP: filePresent || oldMedicalInfo.fileP,
+          filePName: filePresentName || oldMedicalInfo.filePName, // อัปเดตชื่อไฟล์ดั้งเดิม
+          fileM: fileManage || oldMedicalInfo.fileM,
+          fileMName: fileManageName || oldMedicalInfo.fileMName,
+          filePhy: filePhychosocial || oldMedicalInfo.filePhy,
+          filePhyName: filePhychosocialName || oldMedicalInfo.filePhyName,
+          selectedPersonnel,
+        },
+        { new: true }
+      );
     if (!updatedMedicalInformation) {
       return res.status(404).json({ status: "Medical information not found" });
     }
@@ -5885,7 +6234,9 @@ app.post("/updatemedicalinformation/:id", upload1, async (req, res) => {
     res.json({ status: "ok", updatedMedicalInfo: updatedMedicalInformation });
   } catch (error) {
     console.error("Error updating medical information:", error);
-    res.status(500).json({ status: "error", message: "Error updating medical information" });
+    res
+      .status(500)
+      .json({ status: "error", message: "Error updating medical information" });
   }
 });
 //ดึงข้อมูลแพทย์
@@ -5903,7 +6254,6 @@ app.get("/getmpersonnel/:id", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 
 // app.get("/getmpersonnelass/:id", async (req, res) => {
 //   const { id } = req.params;
@@ -5923,8 +6273,16 @@ app.get("/getmpersonnel/:id", async (req, res) => {
 
 //แก้ไขแพทย์
 app.post("/updatemp/:id", async (req, res) => {
-  const { username, password, email, confirmPassword, tel, nametitle, name, surname } =
-    req.body;
+  const {
+    username,
+    password,
+    email,
+    confirmPassword,
+    tel,
+    nametitle,
+    name,
+    surname,
+  } = req.body;
   const { id } = req.params;
 
   try {
@@ -5959,12 +6317,10 @@ app.get("/equipmentuser/:id", async (req, res) => {
   try {
     const equipmentusers = await EquipmentUser.findOne({ user: id });
     if (!equipmentusers) {
-      return res
-        .status(404)
-        .send({
-          status: "error",
-          message: "Medical information not found for this user",
-        });
+      return res.status(404).send({
+        status: "error",
+        message: "Medical information not found for this user",
+      });
     }
     res.send({ status: "ok", data: equipmentusers });
   } catch (error) {
@@ -6048,7 +6404,6 @@ app.post("/addsymptom", async (req, res) => {
   }
 });
 
-
 app.get("/searchsymptom", async (req, res) => {
   try {
     const { keyword } = req.query; // เรียกใช้ keyword ที่ส่งมาจาก query parameters
@@ -6065,7 +6420,6 @@ app.get("/searchsymptom", async (req, res) => {
     res.json({ status: error });
   }
 });
-
 
 app.get("/allSymptom", async (req, res) => {
   try {
@@ -6115,7 +6469,9 @@ app.post("/updatesymptom/:id", async (req, res) => {
   try {
     const existingSymptom = await Symptom.findOne({ name });
     if (existingSymptom && existingSymptom._id.toString() !== id) {
-      return res.status(400).json({ error: 'ชื่ออาการซ้ำในระบบ กรุณาเปลี่ยนชื่อ' });
+      return res
+        .status(400)
+        .json({ error: "ชื่ออาการซ้ำในระบบ กรุณาเปลี่ยนชื่อ" });
     }
     const UpdatedSymptom = await Symptom.findByIdAndUpdate(
       id,
@@ -6153,9 +6509,7 @@ app.get("/getsymptom/:id", async (req, res) => {
   }
 });
 
-
 // ------------------------------------------------
-
 
 // แชทฝั่งหมอ
 
@@ -6168,8 +6522,8 @@ app.get("/searchuserchat", async (req, res) => {
     const result = await User.aggregate([
       {
         $addFields: {
-          fullname: { $concat: ["$name", " ", "$surname"] }
-        }
+          fullname: { $concat: ["$name", " ", "$surname"] },
+        },
       },
       {
         $match: {
@@ -6177,10 +6531,10 @@ app.get("/searchuserchat", async (req, res) => {
             { username: { $regex: regex } },
             { name: { $regex: regex } },
             { surname: { $regex: regex } },
-            { fullname: { $regex: regex } }
-          ]
-        }
-      }
+            { fullname: { $regex: regex } },
+          ],
+        },
+      },
     ]);
 
     res.json({ status: "ok", data: result });
@@ -6189,133 +6543,142 @@ app.get("/searchuserchat", async (req, res) => {
   }
 });
 
-
 //เริ่มต้นแก้ใหม่ 191267
-io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
 
   // เข้าห้องแชท
-  socket.on('joinRoom', (roomId) => {
+  socket.on("joinRoom", (roomId) => {
     socket.join(roomId);
     console.log(`User joined room: ${roomId}`);
   });
 
-   
-    // อัปเดตข้อความเมื่อมีการอ่านข้อความ
-    socket.on("markAsRead", async ({ roomId, messageId, userId }) => {
-      try {
-        // ตรวจสอบ userId ว่าเป็น ObjectId ที่ถูกต้อง
-        if (!mongoose.Types.ObjectId.isValid(userId)) {
-          console.error(`Invalid userId: ${userId}`);
-          return;
-        }
-        const chatMessage = await Chat.findById(messageId);
-        if (chatMessage) {
-          const isAlreadyRead = chatMessage.readBy.some(
-            (readerId) => readerId.toString() === userId
-          );
-          if (!isAlreadyRead && chatMessage.sender.toString() !== userId) {
-            await Chat.findByIdAndUpdate(
-              messageId,
-              { $addToSet: { readBy: userId } }, // ป้องกันค่าซ้ำใน readBy
-              { new: true } // คืนค่าที่อัปเดตกลับมา
-            );
-         const chats = await Chat.find({
-          roomId,
-          sender: { $ne: userId },
-          readBy: { $nin: [userId] },
-        });
-            // ส่งข้อมูลอัปเดตให้ทุกคนในห้อง
-            io.to(roomId).emit("readByUpdated", {
-              messageId,
-              readBy: [...chatMessage.readBy, userId], // รวม userId ใหม่
-              unreadCount: chats.length,
-            });
-            console.log(`Message ${messageId} marked as read by ${userId}`);
-
-            const updatedUsers = await User.find(
-              { deletedAt: null },
-              "name surname username"
-            ).lean();
-    
-            const updatedMPersonnel = await MPersonnel.find(
-              { deletedAt: null },
-              "name surname username"
-            ).lean();
-        
-            // รวม User และ MPersonnel
-            const allParticipants = [...updatedUsers, ...updatedMPersonnel];
-        
-            // ดึงข้อมูลห้องทั้งหมดที่ผู้ใช้และ MPersonnel เป็นสมาชิก
-            const totalrooms = await Room.find({
-              "participants.id": { $in: allParticipants.map((participant) => participant._id) },
-            }).lean();
-        
-            // คำนวณ unread count สำหรับแต่ละผู้ใช้ในห้องนี้
-            const usersWithUnreadCounts = await Promise.all(
-              allParticipants.map(async (participant) => {
-                // หาห้องที่ผู้ใช้อยู่
-                const userRooms = totalrooms.filter((room) =>
-                  room.participants.some((p) => String(p.id) === String(participant._id))
-                );
-        
-                if (userRooms.length === 0) {
-                  return null;  // ถ้าผู้ใช้ไม่ได้อยู่ในห้องใดๆ ให้ข้ามไป
-                }
-        
-                let unreadCount = {};
-        
-                // คำนวณ unread count สำหรับแต่ละห้องที่ผู้ใช้เป็นสมาชิก
-                for (const room of userRooms) {
-                  const excludedUsers = await User.find({ deletedAt: { $ne: null } }).lean();
-                  const excludedUserIds = excludedUsers.map((user) => String(user._id));
-            
-                  // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
-                  if (excludedUserIds.includes(String(room.roomId))) {
-                    continue;
-                  }
-
-                  const roomUnreadCount = await Chat.countDocuments({
-                    roomId: room.roomId,
-                    readBy: { $ne: participant._id }, // ตรวจสอบว่าแชทที่ยังไม่ได้อ่าน
-                  });
-        
-                  unreadCount[room.roomId] = roomUnreadCount;
-                }
-        
-                // คำนวณ total unread count สำหรับผู้ใช้
-                const totalUnreadCount = Object.values(unreadCount).reduce(
-                  (acc, count) => acc + count,
-                  0
-                );
-        
-                console.log(`📦 Total Unread Count for ${participant._id}:`, totalUnreadCount);
-        
-                return {
-                  userId: participant._id,
-                  unreadCount,
-                  totalUnreadCount,
-                };
-              })
-            );
-        
-            // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
-            const totalfilteredUsers = usersWithUnreadCounts.filter((user) => user !== null);
-            console.log('รวม:', totalfilteredUsers);
-            io.emit("TotalUnreadCounts", totalfilteredUsers);
-          }
-        }
-       
-      } catch (error) {
-        console.error("Error updating readBy:", error);
+  // อัปเดตข้อความเมื่อมีการอ่านข้อความ
+  socket.on("markAsRead", async ({ roomId, messageId, userId }) => {
+    try {
+      // ตรวจสอบ userId ว่าเป็น ObjectId ที่ถูกต้อง
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        console.error(`Invalid userId: ${userId}`);
+        return;
       }
-    });
-  
-  socket.on('disconnect', () => {
-    console.log('A user disconnected:', socket.id);
+      const chatMessage = await Chat.findById(messageId);
+      if (chatMessage) {
+        const isAlreadyRead = chatMessage.readBy.some(
+          (readerId) => readerId.toString() === userId
+        );
+        if (!isAlreadyRead && chatMessage.sender.toString() !== userId) {
+          await Chat.findByIdAndUpdate(
+            messageId,
+            { $addToSet: { readBy: userId } }, // ป้องกันค่าซ้ำใน readBy
+            { new: true } // คืนค่าที่อัปเดตกลับมา
+          );
+          const chats = await Chat.find({
+            roomId,
+            sender: { $ne: userId },
+            readBy: { $nin: [userId] },
+          });
+          // ส่งข้อมูลอัปเดตให้ทุกคนในห้อง
+          io.to(roomId).emit("readByUpdated", {
+            messageId,
+            readBy: [...chatMessage.readBy, userId], // รวม userId ใหม่
+            unreadCount: chats.length,
+          });
+          console.log(`Message ${messageId} marked as read by ${userId}`);
+
+          const updatedUsers = await User.find(
+            { deletedAt: null },
+            "name surname username"
+          ).lean();
+
+          const updatedMPersonnel = await MPersonnel.find(
+            { deletedAt: null },
+            "name surname username"
+          ).lean();
+
+          // รวม User และ MPersonnel
+          const allParticipants = [...updatedUsers, ...updatedMPersonnel];
+
+          // ดึงข้อมูลห้องทั้งหมดที่ผู้ใช้และ MPersonnel เป็นสมาชิก
+          const totalrooms = await Room.find({
+            "participants.id": {
+              $in: allParticipants.map((participant) => participant._id),
+            },
+          }).lean();
+
+          // คำนวณ unread count สำหรับแต่ละผู้ใช้ในห้องนี้
+          const usersWithUnreadCounts = await Promise.all(
+            allParticipants.map(async (participant) => {
+              // หาห้องที่ผู้ใช้อยู่
+              const userRooms = totalrooms.filter((room) =>
+                room.participants.some(
+                  (p) => String(p.id) === String(participant._id)
+                )
+              );
+
+              if (userRooms.length === 0) {
+                return null; // ถ้าผู้ใช้ไม่ได้อยู่ในห้องใดๆ ให้ข้ามไป
+              }
+
+              let unreadCount = {};
+
+              // คำนวณ unread count สำหรับแต่ละห้องที่ผู้ใช้เป็นสมาชิก
+              for (const room of userRooms) {
+                const excludedUsers = await User.find({
+                  deletedAt: { $ne: null },
+                }).lean();
+                const excludedUserIds = excludedUsers.map((user) =>
+                  String(user._id)
+                );
+
+                // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
+                if (excludedUserIds.includes(String(room.roomId))) {
+                  continue;
+                }
+
+                const roomUnreadCount = await Chat.countDocuments({
+                  roomId: room.roomId,
+                  readBy: { $ne: participant._id }, // ตรวจสอบว่าแชทที่ยังไม่ได้อ่าน
+                });
+
+                unreadCount[room.roomId] = roomUnreadCount;
+              }
+
+              // คำนวณ total unread count สำหรับผู้ใช้
+              const totalUnreadCount = Object.values(unreadCount).reduce(
+                (acc, count) => acc + count,
+                0
+              );
+
+              console.log(
+                `📦 Total Unread Count for ${participant._id}:`,
+                totalUnreadCount
+              );
+
+              return {
+                userId: participant._id,
+                unreadCount,
+                totalUnreadCount,
+              };
+            })
+          );
+
+          // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
+          const totalfilteredUsers = usersWithUnreadCounts.filter(
+            (user) => user !== null
+          );
+          console.log("รวม:", totalfilteredUsers);
+          io.emit("TotalUnreadCounts", totalfilteredUsers);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating readBy:", error);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("A user disconnected:", socket.id);
   });
 });
-
 
 app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
   try {
@@ -6482,7 +6845,7 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
             );
 
             if (userRooms.length === 0) {
-              return null; 
+              return null;
             }
 
             let unreadCount = {};
@@ -6512,7 +6875,7 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
               0
             );
 
-           console.log(
+            console.log(
               `Total Unread Count for ${participant._id}:`,
               totalUnreadCount
             );
@@ -6536,7 +6899,7 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
           success: true,
           message: "Chat message with image saved",
           newChat,
-          imageUrl, 
+          imageUrl,
           imageName: originalFileName,
           fileSize,
           roomId,
@@ -6719,15 +7082,13 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
   }
 });
 
-
-
 app.get("/getChatHistory/:roomId", async (req, res) => {
   try {
     const { roomId } = req.params;
 
-    const chatHistory = await Chat.find({ roomId: roomId }) 
-      .populate("sender", "nametitle name username surname") 
-      .sort({ createdAt: 1 }); 
+    const chatHistory = await Chat.find({ roomId: roomId })
+      .populate("sender", "nametitle name username surname")
+      .sort({ createdAt: 1 });
     if (!chatHistory || chatHistory.length === 0) {
       return res.json({
         success: true,
@@ -6759,7 +7120,6 @@ app.get("/users", async (req, res) => {
 
     const usersWithChats = await Promise.all(
       updatedUsers.map(async (user) => {
-
         if (!user) return null;
 
         const userRooms = rooms.filter((room) =>
@@ -6829,10 +7189,8 @@ app.get("/users", async (req, res) => {
   }
 });
 
-
-app.get("/update-unread-count", async (req, res) => {
+app.get("/update-unread-count1", async (req, res) => {
   try {
-
     // ดึงข้อมูลผู้ใช้ที่ไม่ถูกลบ
     const updatedUsers = await User.find(
       { deletedAt: null },
@@ -6850,10 +7208,100 @@ app.get("/update-unread-count", async (req, res) => {
 
     // ดึงข้อมูลห้องทั้งหมดที่ผู้ใช้และ MPersonnel เป็นสมาชิก
     const rooms = await Room.find({
-      "participants.id": { $in: allParticipants.map((participant) => participant._id) },
+      "participants.id": {
+        $in: allParticipants.map((participant) => participant._id),
+      },
     }).lean();
 
     // คำนวณ unread count สำหรับแต่ละผู้ใช้ในห้องนี้
+    const usersWithUnreadCounts = await Promise.all(
+      allParticipants.map(async (participant) => {
+        // หาห้องที่ผู้ใช้อยู่
+        const userRooms = rooms.filter((room) =>
+          room.participants.some(
+            (p) => String(p.id) === String(participant._id)
+          )
+        );
+
+        if (userRooms.length === 0) {
+          return null; // ถ้าผู้ใช้ไม่ได้อยู่ในห้องใดๆ ให้ข้ามไป
+        }
+
+        let unreadCount = {};
+
+        // คำนวณ unread count สำหรับแต่ละห้องที่ผู้ใช้เป็นสมาชิก
+        for (const room of userRooms) {
+          const excludedUsers = await User.find({
+            deletedAt: { $ne: null },
+          }).lean();
+          const excludedUserIds = excludedUsers.map((user) => String(user._id));
+
+          // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
+          if (excludedUserIds.includes(String(room.roomId))) {
+            continue;
+          }
+
+          const roomUnreadCount = await Chat.countDocuments({
+            roomId: room.roomId,
+            readBy: { $ne: participant._id }, // ตรวจสอบว่าแชทที่ยังไม่ได้อ่าน
+          });
+
+          unreadCount[room.roomId] = roomUnreadCount;
+        }
+
+        // คำนวณ total unread count สำหรับผู้ใช้
+        const totalUnreadCount = Object.values(unreadCount).reduce(
+          (acc, count) => acc + count,
+          0
+        );
+
+        console.log(
+          `📦 Total Unread Count for ${participant._id}:`,
+          totalUnreadCount
+        );
+
+        return {
+          userId: participant._id,
+          unreadCount,
+          totalUnreadCount,
+        };
+      })
+    );
+
+    // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
+    const filteredUsers = usersWithUnreadCounts.filter((user) => user !== null);
+    console.log("📦 Users with Unread Counts:", filteredUsers);
+    io.emit("updateUnreadCounts", filteredUsers);
+    res.status(200).send({ success: true, users: filteredUsers });
+  } catch (error) {
+    console.error("Error updating unread count:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error updating unread count" });
+  }
+});
+//เหมือนจะเร็วแต่มันเรียกใช้ไม่หมด
+app.get("/update-unread-count", async (req, res) => {
+  try {
+    // ดึงข้อมูลผู้ใช้และ MPersonnel ที่ไม่ถูกลบ
+    const updatedUsers = await User.find(
+      { deletedAt: null },
+      "name surname username"
+    ).lean();
+
+    const updatedMPersonnel = await MPersonnel.find(
+      { deletedAt: null },
+      "name surname username"
+    ).lean();
+
+    // รวม User และ MPersonnel
+    const allParticipants = [...updatedUsers, ...updatedMPersonnel];
+
+    // ดึงข้อมูลห้องทั้งหมดที่ผู้ใช้และ MPersonnel เป็นสมาชิก
+    const rooms = await Room.find({
+      "participants.id": { $in: allParticipants.map((participant) => participant._id) },
+    }).lean();
+
     const usersWithUnreadCounts = await Promise.all(
       allParticipants.map(async (participant) => {
         // หาห้องที่ผู้ใช้อยู่
@@ -6868,23 +7316,16 @@ app.get("/update-unread-count", async (req, res) => {
         let unreadCount = {};
 
         // คำนวณ unread count สำหรับแต่ละห้องที่ผู้ใช้เป็นสมาชิก
-        for (const room of userRooms) {
+        const unreadCountsResults = await Promise.all(
+          userRooms.map(async (room) => {
+            const roomUnreadCount = await Chat.countDocuments({
+              roomId: room.roomId,
+              readBy: { $ne: participant._id },
+            });
 
-          const excludedUsers = await User.find({ deletedAt: { $ne: null } }).lean();
-          const excludedUserIds = excludedUsers.map((user) => String(user._id));
-    
-          // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
-          if (excludedUserIds.includes(String(room.roomId))) {
-            continue;
-          }
-
-          const roomUnreadCount = await Chat.countDocuments({
-            roomId: room.roomId,
-            readBy: { $ne: participant._id }, // ตรวจสอบว่าแชทที่ยังไม่ได้อ่าน
-          });
-
-          unreadCount[room.roomId] = roomUnreadCount;
-        }
+            unreadCount[room.roomId] = roomUnreadCount;
+          })
+        );
 
         // คำนวณ total unread count สำหรับผู้ใช้
         const totalUnreadCount = Object.values(unreadCount).reduce(
@@ -6914,36 +7355,37 @@ app.get("/update-unread-count", async (req, res) => {
   }
 });
 
-
-app.get('/getUserById/:id', async (req, res) => {
+app.get("/getUserById/:id", async (req, res) => {
   const { id } = req.params; // ดึง ID จาก URL
 
   try {
     const user = await User.findById(id); // ค้นหาผู้ใช้จาก ID
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
     res.json({ user }); // ส่งข้อมูลของผู้ใช้กลับไป
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 // API สำหรับดึงข้อมูล MPersonnel ทั้งหมด
-app.get('/getMPersonnelList', async (req, res) => {
+app.get("/getMPersonnelList", async (req, res) => {
   try {
     const personnelList = await MPersonnel.find({ deletedAt: null }); // สามารถเพิ่มเงื่อนไขที่ต้องการ
     res.json(personnelList);
   } catch (error) {
-    console.error('Error fetching MPersonnel list:', error);
-    res.status(500).json({ success: false, message: 'Error fetching MPersonnel list' });
+    console.error("Error fetching MPersonnel list:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching MPersonnel list" });
   }
 });
 
 // ----------------
 
-app.get('/alluserchat', async (req, res) => {
+app.get("/alluserchat", async (req, res) => {
   try {
     const userId = req.query.userId;
     const users = await User.find({ deletedAt: null }).lean();
@@ -6951,13 +7393,16 @@ app.get('/alluserchat', async (req, res) => {
     const usersWithLastMessage = await Promise.all(
       users.map(async (user) => {
         const lastMessage = await Chat.findOne({
-          $or: [{ sender: userId, recipient: user._id }, { sender: user._id, recipient: userId }],
+          $or: [
+            { sender: userId, recipient: user._id },
+            { sender: user._id, recipient: userId },
+          ],
         })
           .sort({ createdAt: -1 })
-          .select('message createdAt sender senderModel isRead recipient image')
+          .select("message createdAt sender senderModel isRead recipient image")
           .populate({
-            path: 'sender recipient',
-            select: 'name',
+            path: "sender recipient",
+            select: "name",
           })
           .lean();
 
@@ -6967,40 +7412,43 @@ app.get('/alluserchat', async (req, res) => {
           isRead: false,
         });
 
-        return { ...user, lastMessage: lastMessage ? lastMessage : null, unreadCount };
+        return {
+          ...user,
+          lastMessage: lastMessage ? lastMessage : null,
+          unreadCount,
+        };
       })
     );
 
     res.json({ data: usersWithLastMessage });
   } catch (error) {
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-app.get('/lastmessage/:userId', async (req, res) => {
+app.get("/lastmessage/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     const loginUserId = req.query.loginUserId;
     const lastMessage = await Chat.findOne({
       $or: [
         { sender: userId, recipient: loginUserId },
-        { sender: loginUserId, recipient: userId }
-      ]
+        { sender: loginUserId, recipient: userId },
+      ],
     })
       .sort({ createdAt: -1 })
-      .select('message createdAt sender senderModel isRead recipient image')
+      .select("message createdAt sender senderModel isRead recipient image")
       .populate({
-        path: 'sender recipient',
-        select: 'name',
+        path: "sender recipient",
+        select: "name",
       })
       .lean();
 
     res.json({ lastMessage: lastMessage ? lastMessage : null });
   } catch (error) {
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 
 //รายชื่อ chat หมอ ที่ฝั่งผู้ป่วย
 app.get("/allMpersonnelchat1", async (req, res) => {
@@ -7011,13 +7459,16 @@ app.get("/allMpersonnelchat1", async (req, res) => {
     const usersWithLastMessage = await Promise.all(
       allMpersonnel.map(async (user) => {
         const lastMessage = await Chat.findOne({
-          $or: [{ sender: userId, recipient: user._id }, { sender: user._id, recipient: userId }],
+          $or: [
+            { sender: userId, recipient: user._id },
+            { sender: user._id, recipient: userId },
+          ],
         })
           .sort({ createdAt: -1 })
-          .select('message createdAt sender senderModel isRead recipient image')
+          .select("message createdAt sender senderModel isRead recipient image")
           .populate({
-            path: 'sender recipient',
-            select: 'name',
+            path: "sender recipient",
+            select: "name",
           })
           .lean();
 
@@ -7027,14 +7478,18 @@ app.get("/allMpersonnelchat1", async (req, res) => {
           isRead: false,
         });
 
-        return { ...user, lastMessage: lastMessage ? lastMessage : null, unreadCount };
+        return {
+          ...user,
+          lastMessage: lastMessage ? lastMessage : null,
+          unreadCount,
+        };
       })
     );
 
     res.json({ data: usersWithLastMessage });
   } catch (error) {
     console.error("Error in /allMpersonnelchat1 endpoint:", error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
@@ -7045,7 +7500,7 @@ app.get("/diagnosis-count", async (req, res) => {
   try {
     const diagnosisCounts = await MedicalInformation.aggregate([
       { $group: { _id: "$Diagnosis", count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
+      { $sort: { count: -1 } },
     ]);
 
     res.json({ status: "ok", data: diagnosisCounts });
@@ -7056,7 +7511,7 @@ app.get("/diagnosis-count", async (req, res) => {
 });
 
 //ประเมินความพร้อม
-app.post('/submitReadinessForm/:id', async (req, res) => {
+app.post("/submitReadinessForm/:id", async (req, res) => {
   const { userId, Readiness1, Readiness2, status_name, MPersonnel } = req.body;
 
   try {
@@ -7068,13 +7523,16 @@ app.post('/submitReadinessForm/:id', async (req, res) => {
       status_name,
     });
     await newReadinessForm.save();
-    res.status(201).json({ success: true, message: 'ReadinessForm saved successfully' });
+    res
+      .status(201)
+      .json({ success: true, message: "ReadinessForm saved successfully" });
   } catch (error) {
-    console.error('Error saving ReadinessForm:', error);
-    res.status(500).json({ success: false, message: 'Error saving ReadinessForm' });
+    console.error("Error saving ReadinessForm:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error saving ReadinessForm" });
   }
 });
-
 
 //เอาบันทึกคนนี้้มาทั้งหมด
 app.get("/getpatientforms/:userId", async (req, res) => {
@@ -7088,7 +7546,6 @@ app.get("/getpatientforms/:userId", async (req, res) => {
     res.send({ status: "error" });
   }
 });
-
 
 //ฝั่งแพทย์
 // เอาอาการที่เลือกมาแสดง
@@ -7104,13 +7561,14 @@ app.get("/getpatientformsone/:id", async (req, res) => {
   }
 });
 
-
 //เอาบันทึกของ user id มาทั้งหมด หน้าตารางบันทึกการประเมิน
 app.get("/getReadinessForms/:userId", async (req, res) => {
   const userId = req.params.userId;
 
   try {
-    const readinessForms = await ReadinessForm.find({ user: userId }).populate('MPersonnel');;
+    const readinessForms = await ReadinessForm.find({ user: userId }).populate(
+      "MPersonnel"
+    );
     res.send({ status: "ok", data: readinessForms });
   } catch (error) {
     console.error(error);
@@ -7120,24 +7578,28 @@ app.get("/getReadinessForms/:userId", async (req, res) => {
 
 // ดึงข้อมูล ReadinessForm โดยใช้ ID
 //คลิกที่การประเมินเพื่อดูรายละเอียด id ประเมินนี้
-app.get('/getReadinessForm/:id', async (req, res) => {
+app.get("/getReadinessForm/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
     const readinessForm = await ReadinessForm.findById(id);
 
     if (!readinessForm) {
-      return res.status(404).json({ success: false, message: 'ReadinessForm not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "ReadinessForm not found" });
     }
 
     res.status(200).json({ success: true, data: readinessForm });
   } catch (error) {
-    console.error('Error fetching ReadinessForm:', error);
-    res.status(500).json({ success: false, message: 'Error fetching ReadinessForm' });
+    console.error("Error fetching ReadinessForm:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching ReadinessForm" });
   }
 });
 
-app.post('/addReadinessAssessment', async (req, res) => {
+app.post("/addReadinessAssessment", async (req, res) => {
   const { readiness_status, detail, MPersonnel, ReadinessForm } = req.body;
 
   try {
@@ -7146,15 +7608,25 @@ app.post('/addReadinessAssessment', async (req, res) => {
       readiness_status,
       detail,
       MPersonnel,
-      ReadinessForm,  // Include the form ID here
+      ReadinessForm, // Include the form ID here
     });
     res.send({ status: "ok" });
   } catch (error) {
     if (error.code === 11000 && error.keyPattern.ReadinessForm) {
-      res.status(400).send({ status: "error", message: "PatientForm already has an assessment." });
+      res
+        .status(400)
+        .send({
+          status: "error",
+          message: "PatientForm already has an assessment.",
+        });
     } else {
       console.error(error);
-      res.status(500).send({ status: "error", message: "An error occurred while adding assessment." });
+      res
+        .status(500)
+        .send({
+          status: "error",
+          message: "An error occurred while adding assessment.",
+        });
     }
   }
 });
@@ -7172,7 +7644,9 @@ app.get("/allReadinessAssessment", async (req, res) => {
 //หน้ารายละเอียดประเมินความพร้อมการดูแล
 app.get("/allReadinessAssessments", async (req, res) => {
   try {
-    const readinessAssessments = await ReadinessAssessment.find().populate('MPersonnel');
+    const readinessAssessments = await ReadinessAssessment.find().populate(
+      "MPersonnel"
+    );
     res.send({ status: "ok", data: readinessAssessments });
   } catch (error) {
     console.log(error);
@@ -7180,12 +7654,16 @@ app.get("/allReadinessAssessments", async (req, res) => {
 });
 
 // Example in Express.js
-app.get('/completedAssessmentsCount', async (req, res) => {
+app.get("/completedAssessmentsCount", async (req, res) => {
   try {
-    const completedCount = await Assessment.countDocuments({ status_name: "สิ้นสุดการรักษา" });
+    const completedCount = await Assessment.countDocuments({
+      status_name: "สิ้นสุดการรักษา",
+    });
     res.json({ count: completedCount });
   } catch (error) {
-    res.status(500).json({ error: 'Error fetching completed assessments count' });
+    res
+      .status(500)
+      .json({ error: "Error fetching completed assessments count" });
   }
 });
 
@@ -7194,11 +7672,10 @@ app.get('/completedAssessmentsCount', async (req, res) => {
 //     console.log('Server is running on port 5000');
 //   });
 server.listen(5000, () => {
-  console.log('Server is running on port 5000');
+  console.log("Server is running on port 5000");
 });
 
-
-app.post('/submitassessinhome/:id', async (req, res) => {
+app.post("/submitassessinhome/:id", async (req, res) => {
   const {
     userId,
     MPersonnel,
@@ -7216,17 +7693,28 @@ app.post('/submitassessinhome/:id', async (req, res) => {
   try {
     // ตรวจสอบว่า Caregiver Array มีข้อมูลหรือไม่
     if (!Caregiver || Caregiver.length === 0) {
-      return res.status(400).json({ success: false, message: 'Caregiver array is required' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Caregiver array is required" });
     }
 
     // Map Caregiver IDs ไปยัง existingCaregivers
     const updatedExistingCaregivers = Caregiver.map((caregiver, index) => {
-      const caregiverId = typeof caregiver === 'object' ? caregiver.CaregiverId || caregiver : caregiver;
+      const caregiverId =
+        typeof caregiver === "object"
+          ? caregiver.CaregiverId || caregiver
+          : caregiver;
 
       return {
         CaregiverId: caregiverId,
-        firstName: caregiver.name || OtherPeople?.existingCaregivers?.[index]?.firstName || "",
-        lastName: caregiver.surname || OtherPeople?.existingCaregivers?.[index]?.lastName || "",
+        firstName:
+          caregiver.name ||
+          OtherPeople?.existingCaregivers?.[index]?.firstName ||
+          "",
+        lastName:
+          caregiver.surname ||
+          OtherPeople?.existingCaregivers?.[index]?.lastName ||
+          "",
         birthDate: OtherPeople?.existingCaregivers?.[index]?.birthDate || "",
         role: OtherPeople?.existingCaregivers?.[index]?.role || "",
         occupation: OtherPeople?.existingCaregivers?.[index]?.occupation || "",
@@ -7236,52 +7724,56 @@ app.post('/submitassessinhome/:id', async (req, res) => {
         benefit: OtherPeople?.existingCaregivers?.[index]?.benefit || "",
         ud: OtherPeople?.existingCaregivers?.[index]?.ud || "",
         habit: OtherPeople?.existingCaregivers?.[index]?.habit || "",
-        careDetails: OtherPeople?.existingCaregivers?.[index]?.careDetails || "",
+        careDetails:
+          OtherPeople?.existingCaregivers?.[index]?.careDetails || "",
         isNew: false,
       };
     });
 
     // เพิ่ม Caregiver ใหม่
-    const newCaregivers = OtherPeople?.newCaregivers?.map((caregiver) => ({
-      firstName: caregiver.firstName,
-      lastName: caregiver.lastName,
-      birthDate: caregiver.birthDate,
-      role: caregiver.role,
-      occupation: caregiver.occupation,
-      status: caregiver.status,
-      education: caregiver.education,
-      income: caregiver.income,
-      benefit: caregiver.benefit,
-      ud: caregiver.ud,
-      habit: caregiver.habit,
-      careDetails: caregiver.careDetails,
-      isNew: true,
-    })) || [];
+    const newCaregivers =
+      OtherPeople?.newCaregivers?.map((caregiver) => ({
+        firstName: caregiver.firstName,
+        lastName: caregiver.lastName,
+        birthDate: caregiver.birthDate,
+        role: caregiver.role,
+        occupation: caregiver.occupation,
+        status: caregiver.status,
+        education: caregiver.education,
+        income: caregiver.income,
+        benefit: caregiver.benefit,
+        ud: caregiver.ud,
+        habit: caregiver.habit,
+        careDetails: caregiver.careDetails,
+        isNew: true,
+      })) || [];
 
     // ปรับปรุงโครงสร้าง PhysicalExamination ให้รองรับ isOther
     const updatedPhysicalExamination = {};
     Object.keys(PhysicalExamination).forEach((key) => {
       if (Array.isArray(PhysicalExamination[key])) {
         // แปลงข้อมูลเป็นรูปแบบที่รองรับ isOther
-        updatedPhysicalExamination[key] = PhysicalExamination[key].map((item) => {
-          if (typeof item === 'string') {
-            if (item.startsWith("อื่นๆ:")) {
-              return {
-                value: item.replace("อื่นๆ: ", "").trim(),
-                isOther: true,
-              };
-            } else {
-              return {
-                value: item,
-                isOther: false,
-              };
+        updatedPhysicalExamination[key] = PhysicalExamination[key]
+          .map((item) => {
+            if (typeof item === "string") {
+              if (item.startsWith("อื่นๆ:")) {
+                return {
+                  value: item.replace("อื่นๆ: ", "").trim(),
+                  isOther: true,
+                };
+              } else {
+                return {
+                  value: item,
+                  isOther: false,
+                };
+              }
+            } else if (typeof item === "object" && item.value) {
+              // หากเป็น object อยู่แล้ว
+              return item;
             }
-          } else if (typeof item === 'object' && item.value) {
-            // หากเป็น object อยู่แล้ว
-            return item;
-          }
-          return null;
-        }).filter((item) => item); // ลบค่าที่ไม่ใช้งานออก
+            return null;
+          })
+          .filter((item) => item); // ลบค่าที่ไม่ใช้งานออก
       } else {
         updatedPhysicalExamination[key] = PhysicalExamination[key];
       }
@@ -7305,20 +7797,29 @@ app.post('/submitassessinhome/:id', async (req, res) => {
     });
 
     await newAssessinhomesss.save();
-    res.status(201).json({ success: true, message: 'Assessinhomesss saved successfully' });
+    res
+      .status(201)
+      .json({ success: true, message: "Assessinhomesss saved successfully" });
   } catch (error) {
-    console.error('Error saving Assessinhomesss:', error);
-    res.status(500).json({ success: false, message: 'Error saving Assessinhomesss', error: error.message });
+    console.error("Error saving Assessinhomesss:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Error saving Assessinhomesss",
+        error: error.message,
+      });
   }
 });
-
 
 //เอาบันทึกของ user id มาทั้งหมด หน้าตารางบันทึกการประเมิน
 app.get("/getAssessinhomeForms/:userId", async (req, res) => {
   const userId = req.params.userId;
 
   try {
-    const assessinhomeForms = await Assessinhomesss.find({ user: userId }).populate('MPersonnel');;
+    const assessinhomeForms = await Assessinhomesss.find({
+      user: userId,
+    }).populate("MPersonnel");
     res.send({ status: "ok", data: assessinhomeForms });
   } catch (error) {
     console.error(error);
@@ -7326,52 +7827,72 @@ app.get("/getAssessinhomeForms/:userId", async (req, res) => {
   }
 });
 
-
 // ดึงข้อมูล ReadinessForm โดยใช้ ID
 //คลิกที่การประเมินเพื่อดูรายละเอียด id ประเมินนี้
-app.get('/getAssessinhomeForm/:id', async (req, res) => {
+app.get("/getAssessinhomeForm/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
     const AssessinhomesssForm = await Assessinhomesss.findById(id);
 
     if (!AssessinhomesssForm) {
-      return res.status(404).json({ success: false, message: 'AssessinhomesssForm not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "AssessinhomesssForm not found" });
     }
 
     res.status(200).json({ success: true, data: AssessinhomesssForm });
   } catch (error) {
-    console.error('Error fetching AssessinhomesssForm:', error);
-    res.status(500).json({ success: false, message: 'Error fetching AssessinhomesssForm' });
+    console.error("Error fetching AssessinhomesssForm:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching AssessinhomesssForm" });
   }
 });
 
 //แก้ไข inhomesss
-app.post('/updateAssessinhomesss/:id', async (req, res) => {
+app.post("/updateAssessinhomesss/:id", async (req, res) => {
   try {
-      const { id } = req.params;
-      const updateData = req.body;
+    const { id } = req.params;
+    const updateData = req.body;
 
-      // ค้นหาและอัปเดตข้อมูลในฐานข้อมูล
-      const updatedAssessinhomesss = await Assessinhomesss.findByIdAndUpdate(
-          id,
-          { $set: updateData },
-          { new: true } // คืนค่าเอกสารที่อัปเดตแล้ว
-      );
+    // ค้นหาและอัปเดตข้อมูลในฐานข้อมูล
+    const updatedAssessinhomesss = await Assessinhomesss.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true } // คืนค่าเอกสารที่อัปเดตแล้ว
+    );
 
-      if (!updatedAssessinhomesss) {
-          return res.status(404).json({ message: 'Assessinhomesss not found' });
-      }
+    if (!updatedAssessinhomesss) {
+      return res.status(404).json({ message: "Assessinhomesss not found" });
+    }
 
-      res.status(200).json({ message: 'Assessinhomesss updated successfully', data: updatedAssessinhomesss });
+    res
+      .status(200)
+      .json({
+        message: "Assessinhomesss updated successfully",
+        data: updatedAssessinhomesss,
+      });
   } catch (error) {
-      console.error('Error updating Assessinhomesss:', error);
-      res.status(500).json({ message: 'Internal server error', error: error.message });
+    console.error("Error updating Assessinhomesss:", error);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 });
 
-app.post('/submitagenda/:id', async (req, res) => {
-  const { userId, MPersonnel, Caregiver, newCaregivers, status_agenda, PatientAgenda, CaregiverAgenda, CaregiverAssessment, Zaritburdeninterview } = req.body;
+app.post("/submitagenda/:id", async (req, res) => {
+  const {
+    userId,
+    MPersonnel,
+    Caregiver,
+    newCaregivers,
+    status_agenda,
+    PatientAgenda,
+    CaregiverAgenda,
+    CaregiverAssessment,
+    Zaritburdeninterview,
+  } = req.body;
 
   console.log("Received newCaregivers:", newCaregivers); // ตรวจสอบว่าได้รับ newCaregivers หรือไม่
 
@@ -7390,27 +7911,37 @@ app.post('/submitagenda/:id', async (req, res) => {
     });
 
     await newAgenda.save();
-    res.status(201).json({ success: true, message: 'Agenda saved successfully', agenda: newAgenda });
+    res
+      .status(201)
+      .json({
+        success: true,
+        message: "Agenda saved successfully",
+        agenda: newAgenda,
+      });
   } catch (error) {
-    console.error('Error saving Agenda:', error);
-    res.status(500).json({ success: false, message: 'Error saving Agenda' });
+    console.error("Error saving Agenda:", error);
+    res.status(500).json({ success: false, message: "Error saving Agenda" });
   }
 });
 
-app.get('/getAgendaForm/:id', async (req, res) => {
+app.get("/getAgendaForm/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
     const agendaForm = await Agenda.findById(id);
 
     if (!agendaForm) {
-      return res.status(404).json({ success: false, message: 'agendaForm not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "agendaForm not found" });
     }
 
     res.status(200).json({ success: true, data: agendaForm });
   } catch (error) {
-    console.error('Error fetching agendaForm:', error);
-    res.status(500).json({ success: false, message: 'Error fetching agendaForm' });
+    console.error("Error fetching agendaForm:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching agendaForm" });
   }
 });
 
@@ -7418,7 +7949,9 @@ app.get("/getAgendaForms/:userId", async (req, res) => {
   const userId = req.params.userId;
 
   try {
-    const agendaForms = await Agenda.find({ user: userId }).populate('MPersonnel');;
+    const agendaForms = await Agenda.find({ user: userId }).populate(
+      "MPersonnel"
+    );
     res.send({ status: "ok", data: agendaForms });
   } catch (error) {
     console.error(error);
@@ -7426,106 +7959,127 @@ app.get("/getAgendaForms/:userId", async (req, res) => {
   }
 });
 //แก้ไข inhomesss
-app.post('/updateAgenda/:id', async (req, res) => {
+app.post("/updateAgenda/:id", async (req, res) => {
   try {
-      const { id } = req.params;
-      const updateData = req.body;
+    const { id } = req.params;
+    const updateData = req.body;
 
-      // ค้นหาและอัปเดตข้อมูลในฐานข้อมูล
-      const updatedAgenda = await Agenda.findByIdAndUpdate(
-          id,
-          { $set: updateData },
-          { new: true } // คืนค่าเอกสารที่อัปเดตแล้ว
-      );
+    // ค้นหาและอัปเดตข้อมูลในฐานข้อมูล
+    const updatedAgenda = await Agenda.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true } // คืนค่าเอกสารที่อัปเดตแล้ว
+    );
 
-      if (!updatedAgenda) {
-          return res.status(404).json({ message: 'Agenda not found' });
-      }
+    if (!updatedAgenda) {
+      return res.status(404).json({ message: "Agenda not found" });
+    }
 
-      res.status(200).json({ message: 'Agenda updated successfully', data: updatedAgenda });
+    res
+      .status(200)
+      .json({ message: "Agenda updated successfully", data: updatedAgenda });
   } catch (error) {
-      console.error('Error updating Agenda:', error);
-      res.status(500).json({ message: 'Internal server error', error: error.message });
+    console.error("Error updating Agenda:", error);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 });
 
 //ดึงชื่อนามสกุลผู้ดูแลในประเมินเยี่ยมบ้าน
-app.get('/getcaregivers/:userId', async (req, res) => {
+app.get("/getcaregivers/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    const caregivers = await Caregiver.find({ user: userId }, 'name surname');
+    const caregivers = await Caregiver.find({ user: userId }, "name surname");
 
     // ใช้ Map กรองข้อมูลซ้ำ
-    const uniqueCaregivers = Array.from(new Map(
-      caregivers.map(item => [`${item.name} ${item.surname}`, item])
-    ).values());
+    const uniqueCaregivers = Array.from(
+      new Map(
+        caregivers.map((item) => [`${item.name} ${item.surname}`, item])
+      ).values()
+    );
 
     res.status(200).json({
-      status: 'ok',
+      status: "ok",
       data: uniqueCaregivers,
     });
   } catch (error) {
     console.error("Error fetching caregivers:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Failed to fetch caregivers.',
+      status: "error",
+      message: "Failed to fetch caregivers.",
     });
   }
 });
 
 //ดึงชื่อผู้ดูแลมาแสดงหน้า Agenda
-app.get('/getCaregiverstoAgenda/:userId', async (req, res) => {
+app.get("/getCaregiverstoAgenda/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
 
     // ดึงข้อมูล Caregiver ของ User นี้
-    const caregivers = await Caregiver.find({ user: userId }, 'id name surname');
+    const caregivers = await Caregiver.find(
+      { user: userId },
+      "id name surname"
+    );
 
     // กรอง Caregiver ที่ชื่อ-นามสกุลซ้ำ
-    const uniqueCaregivers = Array.from(new Map(
-      caregivers.map(item => [`${item.name} ${item.surname}`, item])
-    ).values());
+    const uniqueCaregivers = Array.from(
+      new Map(
+        caregivers.map((item) => [`${item.name} ${item.surname}`, item])
+      ).values()
+    );
 
     res.status(200).json({
-      status: 'ok',
+      status: "ok",
       data: uniqueCaregivers,
     });
   } catch (error) {
     console.error("Error fetching caregivers:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Failed to fetch caregivers.',
+      status: "error",
+      message: "Failed to fetch caregivers.",
     });
   }
 });
 
-
 //ดึง caregiver ทั้งหมดที่มี เพื่อบันทึกลงอีกตาราง
-app.get('/getCaregiversByUser/:userId', async (req, res) => {
+app.get("/getCaregiversByUser/:userId", async (req, res) => {
   const userId = req.params.userId; // รับ userId จาก URL parameter
 
   try {
     // ค้นหา Caregiver ที่เกี่ยวข้องกับ userId
-    const caregivers = await Caregiver.find({ user: userId }, '_id');
+    const caregivers = await Caregiver.find({ user: userId }, "_id");
 
     // ตรวจสอบว่าพบข้อมูลหรือไม่
     if (!caregivers || caregivers.length === 0) {
-      return res.status(404).json({ status: 'error', message: 'No caregivers found for this user.' });
+      return res
+        .status(404)
+        .json({
+          status: "error",
+          message: "No caregivers found for this user.",
+        });
     }
 
     // ส่งคืน ID ของ Caregiver ทั้งหมด
     res.status(200).json({
-      status: 'ok',
+      status: "ok",
       data: caregivers.map((caregiver) => caregiver._id),
     });
   } catch (error) {
-    console.error('Error fetching caregivers:', error);
-    res.status(500).json({ status: 'error', message: 'Internal Server Error', error: error.message });
+    console.error("Error fetching caregivers:", error);
+    res
+      .status(500)
+      .json({
+        status: "error",
+        message: "Internal Server Error",
+        error: error.message,
+      });
   }
 });
 
 //Agenda
-app.get('/getcaregivesotherpeople/:userId', async (req, res) => {
+app.get("/getcaregivesotherpeople/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
 
@@ -7533,32 +8087,34 @@ app.get('/getcaregivesotherpeople/:userId', async (req, res) => {
     const users = await Assessinhomesss.find({ user: userId }).lean();
 
     if (!users || users.length === 0) {
-      return res.status(404).json({ status: 'error', message: 'User not found' });
+      return res
+        .status(404)
+        .json({ status: "error", message: "User not found" });
     }
 
     // รวมข้อมูล newCaregivers จากทุกเอกสาร
-    const newCaregivers = users.flatMap((user) =>
-      user?.OtherPeople?.newCaregivers?.map((caregiver) => ({
-        id: caregiver?._id,
-        firstName: `${caregiver?.firstName || 'Unknown'} `,
-        lastName: `${caregiver?.lastName || 'Unknown'}`,
-      })) || []
+    const newCaregivers = users.flatMap(
+      (user) =>
+        user?.OtherPeople?.newCaregivers?.map((caregiver) => ({
+          id: caregiver?._id,
+          firstName: `${caregiver?.firstName || "Unknown"} `,
+          lastName: `${caregiver?.lastName || "Unknown"}`,
+        })) || []
     );
 
     res.status(200).json({
-      status: 'ok',
+      status: "ok",
       data: newCaregivers,
     });
   } catch (error) {
-    console.error('Error fetching new caregivers:', error);
+    console.error("Error fetching new caregivers:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Failed to fetch new caregivers',
+      status: "error",
+      message: "Failed to fetch new caregivers",
       error: error.message,
     });
   }
 });
-
 
 //home
 app.get("/immobility/group3", async (req, res) => {
@@ -7627,7 +8183,9 @@ app.get("/assessments/abnormal", async (req, res) => {
     res.status(200).json({ success: true, data: abnormalCases });
   } catch (error) {
     console.error("Error fetching abnormal cases:", error);
-    res.status(500).json({ success: false, error: "Failed to fetch abnormal cases" });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to fetch abnormal cases" });
   }
 });
 
@@ -7637,7 +8195,9 @@ app.get("/getpatientform/:id", async (req, res) => {
   try {
     const patientForm = await PatientForm.findById(id).populate("user"); // Populate user info
     if (!patientForm) {
-      return res.status(404).json({ success: false, error: "PatientForm not found" });
+      return res
+        .status(404)
+        .json({ success: false, error: "PatientForm not found" });
     }
     res.status(200).json({ success: true, data: patientForm });
   } catch (error) {
@@ -7646,33 +8206,34 @@ app.get("/getpatientform/:id", async (req, res) => {
   }
 });
 
-
 app.get("/assessments/abnormal", async (req, res) => {
   try {
-      const { from } = req.query;
-      const query = {
-          status_name: { $in: ["ผิดปกติ", "เคสฉุกเฉิน"] },
-      };
+    const { from } = req.query;
+    const query = {
+      status_name: { $in: ["ผิดปกติ", "เคสฉุกเฉิน"] },
+    };
 
-      if (from) {
-          query.updatedAt = { $gte: new Date(from) };
-      }
+    if (from) {
+      query.updatedAt = { $gte: new Date(from) };
+    }
 
-      const abnormalCases = await Assessment.find(query)
-          .populate({
-              path: "PatientForm",
-              populate: {
-                  path: "user",
-                  select: "name surname",
-              },
-          })
-          .populate("MPersonnel", "nametitle name surname")
-          .sort({ updatedAt: -1 }); // เรียงลำดับจากวันที่ใหม่ไปเก่า
+    const abnormalCases = await Assessment.find(query)
+      .populate({
+        path: "PatientForm",
+        populate: {
+          path: "user",
+          select: "name surname",
+        },
+      })
+      .populate("MPersonnel", "nametitle name surname")
+      .sort({ updatedAt: -1 }); // เรียงลำดับจากวันที่ใหม่ไปเก่า
 
-      res.status(200).json({ success: true, data: abnormalCases });
+    res.status(200).json({ success: true, data: abnormalCases });
   } catch (error) {
-      console.error("Error fetching abnormal cases:", error);
-      res.status(500).json({ success: false, error: "Failed to fetch abnormal cases" });
+    console.error("Error fetching abnormal cases:", error);
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to fetch abnormal cases" });
   }
 });
 
@@ -7707,17 +8268,31 @@ app.get("/assessments/stats", async (req, res) => {
 app.get("/assessments/countstats", async (req, res) => {
   try {
     const totalCases = await Assessment.countDocuments({});
-    const normalCasesCount = await Assessment.countDocuments({ status_name: "ปกติ" });
-    const abnormalCasesCount = await Assessment.countDocuments({ status_name: "ผิดปกติ" });
-    const emergencyCasesCount = await Assessment.countDocuments({ status_name: "เคสฉุกเฉิน" });
+    const normalCasesCount = await Assessment.countDocuments({
+      status_name: "ปกติ",
+    });
+    const abnormalCasesCount = await Assessment.countDocuments({
+      status_name: "ผิดปกติ",
+    });
+    const emergencyCasesCount = await Assessment.countDocuments({
+      status_name: "เคสฉุกเฉิน",
+    });
 
     res.status(200).json({
       success: true,
       stats: {
         totalCases,
-        normalCasesPercentage: ((normalCasesCount / totalCases) * 100).toFixed(2),
-        abnormalCasesPercentage: ((abnormalCasesCount / totalCases) * 100).toFixed(2),
-        emergencyCasesPercentage: ((emergencyCasesCount / totalCases) * 100).toFixed(2),
+        normalCasesPercentage: ((normalCasesCount / totalCases) * 100).toFixed(
+          2
+        ),
+        abnormalCasesPercentage: (
+          (abnormalCasesCount / totalCases) *
+          100
+        ).toFixed(2),
+        emergencyCasesPercentage: (
+          (emergencyCasesCount / totalCases) *
+          100
+        ).toFixed(2),
       },
     });
   } catch (error) {
@@ -7729,9 +8304,15 @@ app.get("/assessments/countstats", async (req, res) => {
 app.get("/assessments/countcase", async (req, res) => {
   try {
     const totalCases = await Assessment.countDocuments({});
-    const normalCasesCount = await Assessment.countDocuments({ status_name: "ปกติ" });
-    const abnormalCasesCount = await Assessment.countDocuments({ status_name: "ผิดปกติ" });
-    const emergencyCasesCount = await Assessment.countDocuments({ status_name: "เคสฉุกเฉิน" });
+    const normalCasesCount = await Assessment.countDocuments({
+      status_name: "ปกติ",
+    });
+    const abnormalCasesCount = await Assessment.countDocuments({
+      status_name: "ผิดปกติ",
+    });
+    const emergencyCasesCount = await Assessment.countDocuments({
+      status_name: "เคสฉุกเฉิน",
+    });
 
     res.status(200).json({
       success: true,
@@ -7748,11 +8329,12 @@ app.get("/assessments/countcase", async (req, res) => {
   }
 });
 
-
 app.get("/immobility/groups", async (req, res) => {
   try {
     // ดึงข้อมูล Immobility ทั้งหมด
-    const assessments = await Assessinhomesss.find({}).select("Immobility.totalScore");
+    const assessments = await Assessinhomesss.find({}).select(
+      "Immobility.totalScore"
+    );
 
     // แบ่งข้อมูลเป็นกลุ่มตามเงื่อนไข
     const groups = {
@@ -7787,12 +8369,11 @@ app.get("/immobility/groups", async (req, res) => {
   }
 });
 
-
-// แชทใหม่
-app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
+// แชทใหม่ไม่ๆ
+app.post("/sendchat2", uploadimg.single("image"), async (req, res) => {
   try {
     const { message, roomId, senderId, senderModel } = req.body;
-    
+
     if (message.length > 10000) {
       return res.status(400).json({
         success: false,
@@ -7801,17 +8382,22 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
     }
 
     // ดึงข้อมูลผู้ส่ง
-    const sender = senderModel === "User" 
-      ? await User.findById(senderId) 
-      : await MPersonnel.findById(senderId);
+    const sender =
+      senderModel === "User"
+        ? await User.findById(senderId)
+        : await MPersonnel.findById(senderId);
 
     if (!sender) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
     let newChat;
-    let imageUrl = null, imageName = null, fileSize = null;
-    
+    let imageUrl = null,
+      imageName = null,
+      fileSize = null;
+
     if (req.file) {
       const bucket = admin.storage().bucket();
       const fileName = `${Date.now()}_${req.file.originalname}`;
@@ -7827,8 +8413,10 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
 
       const [metadata] = await file.getMetadata();
       fileSize = metadata.size;
-      imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
-      imageName = originalFileName; 
+      imageUrl = `https://firebasestorage.googleapis.com/v0/b/${
+        bucket.name
+      }/o/${encodeURIComponent(fileName)}?alt=media`;
+      imageName = originalFileName;
     }
 
     // บันทึกแชทลงฐานข้อมูล
@@ -7856,21 +8444,943 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
     ]);
 
     // ดึงห้องแชทที่ผู้ใช้เกี่ยวข้อง
-    const participantIds = [...updatedUsers, ...updatedMPersonnel].map(p => p._id);
-    const rooms = await Room.find({ "participants.id": { $in: participantIds } }).lean();
+    const participantIds = [...updatedUsers, ...updatedMPersonnel].map(
+      (p) => p._id
+    );
+    const rooms = await Room.find({
+      "participants.id": { $in: participantIds },
+    }).lean();
 
     // อัปเดตข้อมูลผู้ใช้ที่มีแชท
-    const usersWithChats = await Promise.allSettled(updatedUsers.map(async user => {
-      const userRooms = rooms.filter(room => room.participants.some(p => String(p.id) === String(user._id)));
+    const usersWithChats = await Promise.allSettled(
+      updatedUsers.map(async (user) => {
+        const userRooms = rooms.filter((room) =>
+          room.participants.some((p) => String(p.id) === String(user._id))
+        );
+        if (userRooms.length === 0) return null;
+
+        let latestChat = null;
+        let unreadCount = {};
+
+        for (const room of userRooms) {
+          const roomLatestChat = await Chat.findOne({ roomId: room.roomId })
+            .sort({ createdAt: -1 })
+            .populate("sender", "name surname")
+            .lean();
+          if (roomLatestChat) {
+            if (
+              !latestChat ||
+              new Date(roomLatestChat.createdAt) >
+                new Date(latestChat.createdAt)
+            ) {
+              latestChat = {
+                message: roomLatestChat.message,
+                file: roomLatestChat.image,
+                senderId: roomLatestChat.sender._id,
+                senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
+                createdAt: roomLatestChat.createdAt,
+              };
+            }
+          }
+
+          for (const participant of room.participants) {
+            const unreadCounts = await Chat.countDocuments({
+              roomId: room.roomId,
+              readBy: { $ne: participant.id }, // ตรวจสอบว่าใครยังไม่ได้อ่าน
+            });
+
+            unreadCount[participant.id] = unreadCounts;
+          }
+        }
+
+        return {
+          _id: user._id,
+          name: user.name,
+          surname: user.surname,
+          latestChat,
+          unreadCount,
+        };
+      })
+    );
+
+    const filteredUsers = usersWithChats
+      .filter((r) => r.status === "fulfilled")
+      .map((r) => r.value);
+    io.emit("usersUpdated", filteredUsers); // ✅ เพิ่มกลับมาแล้ว!
+
+    // คำนวณ unread count
+    const usersWithUnreadCounts = await Promise.allSettled(
+      participantIds.map(async (participantId) => {
+        const userRooms = rooms.filter((room) =>
+          room.participants.some((p) => String(p.id) === String(participantId))
+        );
+        if (userRooms.length === 0) return null;
+
+        let unreadCount = {};
+        for (const room of userRooms) {
+          unreadCount[room.roomId] = await Chat.countDocuments({
+            roomId: room.roomId,
+            readBy: { $ne: participantId },
+          });
+        }
+
+        return {
+          userId: participantId,
+          unreadCount,
+          totalUnreadCount: Object.values(unreadCount).reduce(
+            (acc, count) => acc + count,
+            0
+          ),
+        };
+      })
+    );
+
+    const totalfilteredUsers = usersWithUnreadCounts
+      .filter((r) => r.status === "fulfilled")
+      .map((r) => r.value);
+    io.emit("TotalUnreadCounts", totalfilteredUsers);
+
+    res.json({
+      success: true,
+      message: "Chat message saved",
+      newChat,
+      imageUrl,
+      imageName,
+      fileSize,
+      roomId,
+      readBy: [senderId],
+    });
+  } catch (error) {
+    console.error("Error saving chat message:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error saving chat message" });
+  }
+});
+
+app.post("/sendchat3", uploadimg.single("image"), async (req, res) => {
+  try {
+    const { message, roomId, senderId, senderModel } = req.body;
+
+    if (message.length > 10000) {
+      return res.status(400).json({
+        success: false,
+        message: "Message exceeds the maximum length of 10000 characters.",
+      });
+    }
+
+    // ดึงข้อมูลผู้ส่ง
+    const sender =
+      senderModel === "User"
+        ? await User.findById(senderId)
+        : await MPersonnel.findById(senderId);
+
+    if (!sender) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    let newChat;
+    let imageUrl = null,
+      imageName = null,
+      fileSize = null;
+
+    // หากมีการอัปโหลดไฟล์
+    if (req.file) {
+      const bucket = admin.storage().bucket();
+      const fileName = `${Date.now()}_${req.file.originalname}`;
+      const file = bucket.file(fileName);
+
+      // อัปโหลดโดยตรง
+      await file.save(req.file.buffer, {
+        metadata: { contentType: req.file.mimetype },
+      });
+
+      const [metadata] = await file.getMetadata();
+      fileSize = metadata.size;
+      imageUrl = `https://firebasestorage.googleapis.com/v0/b/${
+        bucket.name
+      }/o/${encodeURIComponent(fileName)}?alt=media`;
+      imageName = req.file.originalname;
+    }
+
+    // บันทึกแชทลงฐานข้อมูล
+    newChat = new Chat({
+      message,
+      image: imageUrl,
+      imageName,
+      sender: sender._id,
+      senderModel,
+      roomId,
+      fileSize,
+      readBy: [senderId],
+    });
+
+    await newChat.save();
+    await newChat.populate("sender", "name surname");
+
+    // ส่งข้อความแบบเรียลไทม์
+    io.to(roomId).emit("receiveMessage", newChat);
+
+    // ดึงข้อมูลผู้ใช้และ MPersonnel
+    const [updatedUsers, updatedMPersonnel] = await Promise.all([
+      User.find({ deletedAt: null }, "name surname username").lean(),
+      MPersonnel.find({ deletedAt: null }, "name surname username").lean(),
+    ]);
+
+    // ดึงห้องแชทที่ผู้ใช้เกี่ยวข้อง
+    const participantIds = [...updatedUsers, ...updatedMPersonnel].map(
+      (p) => p._id
+    );
+    const rooms = await Room.find({
+      "participants.id": { $in: participantIds },
+    }).lean();
+
+    // คำนวณ unread count
+    const usersWithUnreadCounts = await Promise.allSettled(
+      participantIds.map(async (participantId) => {
+        const userRooms = rooms.filter((room) =>
+          room.participants.some((p) => String(p.id) === String(participantId))
+        );
+        if (userRooms.length === 0) return null;
+
+        let unreadCount = {};
+        for (const room of userRooms) {
+          unreadCount[room.roomId] = await Chat.countDocuments({
+            roomId: room.roomId,
+            readBy: { $ne: participantId },
+          });
+        }
+
+        return {
+          userId: participantId,
+          unreadCount,
+          totalUnreadCount: Object.values(unreadCount).reduce(
+            (acc, count) => acc + count,
+            0
+          ),
+        };
+      })
+    );
+
+    // กรองเฉพาะผู้ใช้ที่มีข้อมูล
+    const totalfilteredUsers = usersWithUnreadCounts
+      .filter((r) => r.status === "fulfilled")
+      .map((r) => r.value);
+    io.emit("TotalUnreadCounts", totalfilteredUsers);
+
+    res.json({
+      success: true,
+      message: "Chat message saved",
+      newChat,
+      imageUrl,
+      imageName,
+      fileSize,
+      roomId,
+      readBy: [senderId],
+    });
+  } catch (error) {
+    console.error("Error saving chat message:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error saving chat message" });
+  }
+});
+
+//แชทอันใหม่ที่ จำนวนมันเด๋อ 040368 คู่กัน
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  // เข้าห้องแชท
+  socket.on("joinRoom", (roomId) => {
+    socket.join(roomId);
+    console.log(`User joined room: ${roomId}`);
+  });
+
+  // อัปเดตข้อความเมื่อมีการอ่านข้อความ
+  socket.on("markAsRead", async ({ roomId, messageId, userId }) => {
+    try {
+      // ตรวจสอบ userId ว่าเป็น ObjectId ที่ถูกต้อง
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        console.error(`Invalid userId: ${userId}`);
+        return;
+      }
+      const chatMessage = await Chat.findById(messageId);
+      if (chatMessage) {
+        const isAlreadyRead = chatMessage.readBy.some(
+          (readerId) => readerId.toString() === userId
+        );
+        if (!isAlreadyRead && chatMessage.sender.toString() !== userId) {
+          await Chat.findByIdAndUpdate(
+            messageId,
+            { $addToSet: { readBy: userId } }, // ป้องกันค่าซ้ำใน readBy
+            { new: true } // คืนค่าที่อัปเดตกลับมา
+          );
+          const chats = await Chat.find({
+            roomId,
+            sender: { $ne: userId },
+            readBy: { $nin: [userId] },
+          });
+          // ส่งข้อมูลอัปเดตให้ทุกคนในห้อง
+          io.to(roomId).emit("readByUpdated", {
+            messageId,
+            readBy: [...chatMessage.readBy, userId], // รวม userId ใหม่
+            unreadCount: chats.length,
+          });
+          console.log(`Message ${messageId} marked as read by ${userId}`);
+
+          const [updatedUsers, updatedMPersonnel] = await Promise.all([
+            User.find({ deletedAt: null }, "name surname username").lean(),
+            MPersonnel.find(
+              { deletedAt: null },
+              "name surname username"
+            ).lean(),
+          ]);
+
+          const allParticipants = [...updatedUsers, ...updatedMPersonnel];
+
+          // ดึงข้อมูลห้องทั้งหมดที่ผู้ใช้และ MPersonnel เป็นสมาชิก
+          const participantIds = [...updatedUsers, ...updatedMPersonnel].map(
+            (p) => p._id
+          );
+
+          const totalrooms = await Room.find({
+            "participants.id": { $in: participantIds },
+          }).lean();
+
+          // คำนวณ unread count สำหรับแต่ละผู้ใช้ในห้องนี้
+          const usersWithUnreadCounts = await Promise.allSettled(
+            allParticipants.map(async (participant) => {
+              // หาห้องที่ผู้ใช้อยู่
+              const userRooms = totalrooms.filter((room) =>
+                room.participants.some(
+                  (p) => String(p.id) === String(participant._id)
+                )
+              );
+
+              if (userRooms.length === 0) {
+                return null;
+              }
+
+              let unreadCount = {};
+
+              // คำนวณ unread count สำหรับแต่ละห้องที่ผู้ใช้เป็นสมาชิก
+              for (const room of userRooms) {
+                const excludedUsers = await User.find({
+                  deletedAt: { $ne: null },
+                }).lean();
+                const excludedUserIds = excludedUsers.map((user) =>
+                  String(user._id)
+                );
+
+                // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
+                if (excludedUserIds.includes(String(room.roomId))) {
+                  continue;
+                }
+
+                const roomUnreadCount = await Chat.countDocuments({
+                  roomId: room.roomId,
+                  readBy: { $ne: participant._id }, // ตรวจสอบว่าแชทที่ยังไม่ได้อ่าน
+                });
+
+                unreadCount[room.roomId] = roomUnreadCount;
+              }
+
+              // คำนวณ total unread count สำหรับผู้ใช้
+              const totalUnreadCount = Object.values(unreadCount).reduce(
+                (acc, count) => acc + count,
+                0
+              );
+
+              console.log(
+                `📦 Total Unread Count for ${participant._id}:`,
+                totalUnreadCount
+              );
+
+              return {
+                userId: participant._id,
+                unreadCount,
+                totalUnreadCount,
+              };
+            })
+          );
+
+          // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
+          const totalfilteredUsers = usersWithUnreadCounts.filter(
+            (user) => user !== null
+          );
+          console.log("รวม:", totalfilteredUsers);
+          io.emit("TotalUnreadCounts", totalfilteredUsers);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating readBy:", error);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("A user disconnected:", socket.id);
+  });
+});
+app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
+  try {
+    const { message, roomId, senderId, senderModel } = req.body;
+
+    if (message.length > 10000) {
+      return res.status(400).json({
+        success: false,
+        message: "Message exceeds the maximum length of 10000 characters.",
+      });
+    }
+
+    // ดึงข้อมูลผู้ส่ง
+    const sender =
+      senderModel === "User"
+        ? await User.findById(senderId)
+        : await MPersonnel.findById(senderId);
+
+    if (!sender) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    let newChat;
+    let imageUrl = null,
+      imageName = null,
+      fileSize = null;
+
+    // หากมีการอัปโหลดไฟล์
+    if (req.file) {
+      const bucket = admin.storage().bucket();
+      const fileName = `${Date.now()}_${req.file.originalname}`;
+      const file = bucket.file(fileName);
+      const originalFileName = Buffer.from(
+        req.file.originalname,
+        "latin1"
+      ).toString("utf8");
+      // อัปโหลดโดยตรง
+      await file.save(req.file.buffer, {
+        metadata: { contentType: req.file.mimetype },
+      });
+
+      const [metadata] = await file.getMetadata();
+      fileSize = metadata.size;
+      imageUrl = `https://firebasestorage.googleapis.com/v0/b/${
+        bucket.name
+      }/o/${encodeURIComponent(fileName)}?alt=media`;
+      imageName = originalFileName;
+    }
+
+    // บันทึกแชทลงฐานข้อมูล
+    newChat = new Chat({
+      message,
+      image: imageUrl,
+      imageName,
+      sender: sender._id,
+      senderModel,
+      roomId,
+      fileSize,
+      readBy: [senderId],
+    });
+
+    await newChat.save();
+    await newChat.populate("sender", "name surname");
+
+    // ส่งข้อความแบบเรียลไทม์
+    io.to(roomId).emit("receiveMessage", newChat);
+
+    // ดึงข้อมูลผู้ใช้และ MPersonnel
+    const [updatedUsers, updatedMPersonnel] = await Promise.all([
+      User.find({ deletedAt: null }, "name surname username").lean(),
+      MPersonnel.find({ deletedAt: null }, "name surname username").lean(),
+    ]);
+
+    // ดึงห้องแชทที่ผู้ใช้เกี่ยวข้อง
+    const participantIds = [...updatedUsers, ...updatedMPersonnel].map(
+      (p) => p._id
+    );
+    const rooms = await Room.find({
+      "participants.id": { $in: participantIds },
+    }).lean();
+
+    // อัปเดตข้อมูลผู้ใช้ที่มีแชท
+    const usersWithChats = await Promise.allSettled(
+      updatedUsers.map(async (user) => {
+        const userRooms = rooms.filter((room) =>
+          room.participants.some((p) => String(p.id) === String(user._id))
+        );
+        if (userRooms.length === 0) return null;
+
+        let latestChat = null;
+        let unreadCount = {};
+
+        for (const room of userRooms) {
+          const roomLatestChat = await Chat.findOne({ roomId: room.roomId })
+            .sort({ createdAt: -1 })
+            .populate("sender", "name surname")
+            .lean();
+          if (roomLatestChat) {
+            if (
+              !latestChat ||
+              new Date(roomLatestChat.createdAt) >
+                new Date(latestChat.createdAt)
+            ) {
+              latestChat = {
+                message: roomLatestChat.message,
+                file: roomLatestChat.image,
+                senderId: roomLatestChat.sender._id,
+                senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
+                createdAt: roomLatestChat.createdAt,
+              };
+            }
+          }
+
+          for (const participant of room.participants) {
+            const unreadCounts = await Chat.countDocuments({
+              roomId: room.roomId,
+              readBy: { $ne: participant.id }, // ตรวจสอบว่าใครยังไม่ได้อ่าน
+            });
+
+            unreadCount[participant.id] = unreadCounts;
+          }
+        }
+
+        return {
+          _id: user._id,
+          name: user.name,
+          surname: user.surname,
+          latestChat,
+          unreadCount,
+        };
+      })
+    );
+
+    const filteredUsers = usersWithChats
+      .filter((r) => r.status === "fulfilled")
+      .map((r) => r.value);
+    io.emit("usersUpdated", filteredUsers);
+
+    // คำนวณ unread count
+    const usersWithUnreadCounts = await Promise.allSettled(
+      participantIds.map(async (participantId) => {
+        const userRooms = rooms.filter((room) =>
+          room.participants.some(
+            (p) =>
+              String(p.id) === String(participantId) && p.deletedAt === null
+          )
+        );
+        if (userRooms.length === 0) return null;
+
+        let unreadCount = {};
+        for (const room of userRooms) {
+          unreadCount[room.roomId] = await Chat.countDocuments({
+            roomId: room.roomId,
+            readBy: { $ne: participantId },
+          });
+        }
+
+        return {
+          userId: participantId,
+          unreadCount,
+          totalUnreadCount: Object.values(unreadCount).reduce(
+            (acc, count) => acc + count,
+            0
+          ),
+        };
+      })
+    );
+
+    const totalfilteredUsers = usersWithUnreadCounts
+      .filter((r) => r.status === "fulfilled")
+      .map((r) => r.value);
+    io.emit("TotalUnreadCounts", totalfilteredUsers);
+
+    res.json({
+      success: true,
+      message: "Chat message saved",
+      newChat,
+      imageUrl,
+      imageName,
+      fileSize,
+      roomId,
+      readBy: [senderId],
+    });
+  } catch (error) {
+    console.error("Error saving chat message:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error saving chat message" });
+  }
+});
+
+//แชท040368 คิดเอง ก่อนจะเป็นอันล่าง
+app.post("/newsendchat", uploadimg.single("image"), async (req, res) => {
+  try {
+    const { message, roomId, senderId, senderModel } = req.body;
+    // let sender;
+    if (message.length > 10000) {
+      return res.status(400).json({
+        success: false,
+        message: "Message exceeds the maximum length of 1000 characters.",
+      });
+    }
+
+    const sender =
+      senderModel === "User"
+        ? await User.findById(senderId)
+        : await MPersonnel.findById(senderId);
+
+    if (!sender) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    let newChat;
+    let imageUrl = null,
+      imageName = null,
+      fileSize = null;
+
+    // ตรวจสอบว่ามีการอัปโหลดไฟล์มาหรือไม่
+    if (req.file) {
+      const bucket = admin.storage().bucket();
+      const fileName = `${Date.now()}_${req.file.originalname}`;
+      const file = bucket.file(fileName);
+      const originalFileName = Buffer.from(
+        req.file.originalname,
+        "latin1"
+      ).toString("utf8");
+      // อัปโหลดโดยตรง
+      await file.save(req.file.buffer, {
+        metadata: { contentType: req.file.mimetype },
+      });
+
+      const [metadata] = await file.getMetadata();
+      fileSize = metadata.size;
+      imageUrl = `https://firebasestorage.googleapis.com/v0/b/${
+        bucket.name
+      }/o/${encodeURIComponent(fileName)}?alt=media`;
+      imageName = originalFileName;
+    }
+
+    newChat = new Chat({
+      message,
+      image: imageUrl,
+      imageName,
+      sender: sender._id,
+      senderModel,
+      roomId,
+      fileSize,
+      readBy: [senderId],
+    });
+
+    await newChat.save();
+    await newChat.populate("sender", "name surname");
+
+    // กระจายข้อความแบบเรียลไทม์
+    io.to(roomId).emit("receiveMessage", newChat);
+
+    const updatedUsers = await User.find(
+      { deletedAt: null },
+      "name surname username"
+    ).lean();
+
+    const updatedMPersonnel = await MPersonnel.find(
+      { deletedAt: null },
+      "name surname username"
+    ).lean();
+
+    const rooms = await Room.find({
+      "participants.id": { $in: updatedUsers.map((user) => user._id) },
+    }).lean();
+
+    const usersWithChats = await Promise.all(
+      updatedUsers.map(async (user) => {
+        const userRooms = rooms.filter((room) =>
+          room.participants.some((p) => String(p.id) === String(user._id))
+        );
+
+        if (userRooms.length === 0) {
+          return null;
+        }
+
+        let latestChat = null;
+        let unreadCount = {};
+
+        for (const room of userRooms) {
+          // ดึงแชทล่าสุดในห้อง
+          const roomLatestChat = await Chat.findOne({ roomId: room.roomId })
+            .sort({ createdAt: -1 })
+            .populate("sender", "name surname")
+            .lean();
+
+          if (roomLatestChat) {
+            if (
+              !latestChat ||
+              new Date(roomLatestChat.createdAt) >
+                new Date(latestChat.createdAt)
+            ) {
+              latestChat = {
+                message: roomLatestChat.message,
+                file: roomLatestChat.image,
+                senderId: roomLatestChat.sender._id,
+                senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
+                createdAt: roomLatestChat.createdAt,
+              };
+            }
+          }
+
+          // ดึงจำนวนข้อความที่ยังไม่ได้อ่านสำหรับทุก participants ในห้องนี้
+          for (const participant of room.participants) {
+            const unreadCounts = await Chat.countDocuments({
+              roomId: room.roomId,
+              readBy: { $ne: participant.id }, // ตรวจสอบว่าใครยังไม่ได้อ่าน
+            });
+
+            unreadCount[participant.id] = unreadCounts;
+          }
+        }
+
+        return {
+          _id: user._id,
+          name: user.name,
+          surname: user.surname,
+          username: user.username,
+          latestChat,
+          unreadCount,
+        };
+      })
+    );
+    const filteredUsers = usersWithChats.filter((user) => user !== null);
+
+    io.emit("usersUpdated", filteredUsers);
+
+    const allParticipants = [...updatedUsers, ...updatedMPersonnel];
+
+    const totalrooms = await Room.find({
+      "participants.id": {
+        $in: allParticipants.map((participant) => participant._id),
+      },
+    }).lean();
+
+    const usersWithUnreadCounts = await Promise.all(
+      allParticipants.map(async (participant) => {
+        const userRooms = totalrooms.filter((room) =>
+          room.participants.some(
+            (p) => String(p.id) === String(participant._id)
+          )
+        );
+
+        if (userRooms.length === 0) {
+          return null;
+        }
+
+        let unreadCount = {};
+
+        for (const room of userRooms) {
+          const excludedUsers = await User.find({
+            deletedAt: { $ne: null },
+          }).lean();
+          const excludedUserIds = excludedUsers.map((user) => String(user._id));
+
+          // ถ้าห้องมี roomId ที่ตรงกับ excludedUserIds ให้ข้ามห้องนี้
+          if (excludedUserIds.includes(String(room.roomId))) {
+            continue;
+          }
+          const roomUnreadCount = await Chat.countDocuments({
+            roomId: room.roomId,
+            readBy: { $ne: participant._id },
+          });
+
+          unreadCount[room.roomId] = roomUnreadCount;
+        }
+
+        const totalUnreadCount = Object.values(unreadCount).reduce(
+          (acc, count) => acc + count,
+          0
+        );
+
+        console.log(
+          `Total Unread Count for ${participant._id}:`,
+          totalUnreadCount
+        );
+
+        return {
+          userId: participant._id,
+          unreadCount,
+          totalUnreadCount,
+        };
+      })
+    );
+
+    // กรองเฉพาะผู้ใช้ที่มีข้อมูล (ไม่เป็น null)
+    const totalfilteredUsers = usersWithUnreadCounts.filter(
+      (user) => user !== null
+    );
+    console.log("รวม:", totalfilteredUsers);
+    io.emit("TotalUnreadCounts", totalfilteredUsers);
+
+    res.json({
+      success: true,
+      message: "Chat message with image saved",
+      newChat,
+      imageUrl,
+      imageName: originalFileName,
+      fileSize,
+      roomId,
+      readBy: [senderId],
+    });
+  } catch (error) {
+    console.error("Error saving chat message:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error saving chat message" });
+  }
+});
+
+//แชท040368 คิดเอง + ส่งแชท เอาอันนี้
+app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
+  try {
+    const { message, roomId, senderId, senderModel } = req.body;
+
+    // ตรวจสอบข้อความ
+    if (message.length > 10000) {
+      return res.status(400).json({
+        success: false,
+        message: "Message exceeds the maximum length of 10000 characters.",
+      });
+    }
+
+    // ดึงข้อมูลผู้ส่ง
+    const sender =
+      senderModel === "User"
+        ? await User.findById(senderId)
+        : await MPersonnel.findById(senderId);
+
+    if (!sender) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // สร้างตัวแปรสำหรับไฟล์
+    let imageUrl = null,
+      imageName = null,
+      fileSize = null;
+
+    // อัปโหลดไฟล์หากมี
+    if (req.file) {
+      const {
+        imageUrl: fileImageUrl,
+        imageName: fileImageName,
+        fileSize: uploadedFileSize,
+      } = await uploadFile(req.file);
+      imageUrl = fileImageUrl;
+      imageName = fileImageName;
+      fileSize = uploadedFileSize;
+    }
+
+    // สร้างข้อความแชทใหม่
+    const newChat = new Chat({
+      message,
+      image: imageUrl,
+      imageName,
+      sender: sender._id,
+      senderModel,
+      roomId,
+      fileSize,
+      readBy: [senderId],
+    });
+
+    await newChat.save();
+    await newChat.populate("sender", "name surname");
+
+    // กระจายข้อความแบบเรียลไทม์
+    io.to(roomId).emit("receiveMessage", newChat);
+
+    // อัปเดตผู้ใช้ที่เกี่ยวข้อง
+    await updateUserChatsAndUnreadCounts();
+
+    res.json({
+      success: true,
+      message: "Chat message saved",
+      newChat,
+      imageUrl,
+      imageName,
+      fileSize,
+      roomId,
+      readBy: [senderId],
+    });
+  } catch (error) {
+    console.error("Error saving chat message:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error saving chat message" });
+  }
+});
+
+// ฟังก์ชันอัปโหลดไฟล์
+const uploadFile = async (file) => {
+  const bucket = admin.storage().bucket();
+  const fileName = `${Date.now()}_${file.originalname}`;
+  const fileObj = bucket.file(fileName);
+  const originalFileName = Buffer.from(file.originalname, "latin1").toString(
+    "utf8"
+  );
+
+  // อัปโหลดไฟล์ไปที่ Firebase
+  await fileObj.save(file.buffer, {
+    metadata: { contentType: file.mimetype },
+  });
+
+  const [metadata] = await fileObj.getMetadata();
+  const fileSize = metadata.size;
+  const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${
+    bucket.name
+  }/o/${encodeURIComponent(fileName)}?alt=media`;
+
+  return { imageUrl, imageName: originalFileName, fileSize };
+};
+
+// ฟังก์ชันอัปเดตผู้ใช้ที่เกี่ยวข้องและจำนวนข้อความที่ยังไม่ได้อ่าน
+const updateUserChatsAndUnreadCounts = async () => {
+  const updatedUsers = await User.find(
+    { deletedAt: null },
+    "name surname username"
+  ).lean();
+  const updatedMPersonnel = await MPersonnel.find(
+    { deletedAt: null },
+    "name surname username"
+  ).lean();
+
+  const rooms = await Room.find({
+    "participants.id": { $in: updatedUsers.map((user) => user._id) },
+  }).lean();
+
+  // คำนวณแชทล่าสุดและจำนวน unread สำหรับผู้ใช้
+  const usersWithChats = await Promise.all(
+    updatedUsers.map(async (user) => {
+      const userRooms = rooms.filter((room) =>
+        room.participants.some((p) => String(p.id) === String(user._id))
+      );
+
       if (userRooms.length === 0) return null;
 
       let latestChat = null;
       let unreadCount = {};
 
       for (const room of userRooms) {
-        const roomLatestChat = await Chat.findOne({ roomId: room.roomId }).sort({ createdAt: -1 }).populate("sender", "name surname").lean();
+        const roomLatestChat = await Chat.findOne({ roomId: room.roomId })
+          .sort({ createdAt: -1 })
+          .populate("sender", "name surname")
+          .lean();
         if (roomLatestChat) {
-          if (!latestChat || new Date(roomLatestChat.createdAt) > new Date(latestChat.createdAt)) {
+          if (
+            !latestChat ||
+            new Date(roomLatestChat.createdAt) > new Date(latestChat.createdAt)
+          ) {
             latestChat = {
               message: roomLatestChat.message,
               file: roomLatestChat.image,
@@ -7884,34 +9394,649 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
         for (const participant of room.participants) {
           const unreadCounts = await Chat.countDocuments({
             roomId: room.roomId,
-            readBy: { $ne: participant.id }, // ตรวจสอบว่าใครยังไม่ได้อ่าน
+            readBy: { $ne: participant.id },
           });
-
           unreadCount[participant.id] = unreadCounts;
-        }      
+        }
       }
 
-      return { _id: user._id, name: user.name, surname: user.surname, latestChat, unreadCount };
-    }));
+      return {
+        _id: user._id,
+        name: user.name,
+        surname: user.surname,
+        username: user.username,
+        latestChat,
+        unreadCount,
+      };
+    })
+  );
 
-    const filteredUsers = usersWithChats.filter(r => r.status === "fulfilled").map(r => r.value);
-    io.emit("usersUpdated", filteredUsers); // ✅ เพิ่มกลับมาแล้ว!
+  const filteredUsers = usersWithChats.filter((user) => user !== null);
+  io.emit("usersUpdated", filteredUsers);
 
-    // คำนวณ unread count
-    const usersWithUnreadCounts = await Promise.allSettled(participantIds.map(async participantId => {
-      const userRooms = rooms.filter(room => room.participants.some(p => String(p.id) === String(participantId)));
+  // คำนวณ unread counts สำหรับผู้ใช้ทั้งหมด
+  const allParticipants = [...updatedUsers, ...updatedMPersonnel];
+  const totalrooms = await Room.find({
+    "participants.id": {
+      $in: allParticipants.map((participant) => participant._id),
+    },
+  }).lean();
+
+  const usersWithUnreadCounts = await Promise.all(
+    allParticipants.map(async (participant) => {
+      const userRooms = totalrooms.filter((room) =>
+        room.participants.some((p) => String(p.id) === String(participant._id))
+      );
+
       if (userRooms.length === 0) return null;
 
       let unreadCount = {};
+
       for (const room of userRooms) {
-        unreadCount[room.roomId] = await Chat.countDocuments({ roomId: room.roomId, readBy: { $ne: participantId } });
+        const excludedUsers = await User.find({
+          deletedAt: { $ne: null },
+        }).lean();
+        const excludedUserIds = excludedUsers.map((user) => String(user._id));
+
+        if (excludedUserIds.includes(String(room.roomId))) continue;
+
+        const roomUnreadCount = await Chat.countDocuments({
+          roomId: room.roomId,
+          readBy: { $ne: participant._id },
+        });
+
+        unreadCount[room.roomId] = roomUnreadCount;
       }
 
-      return { userId: participantId, unreadCount, totalUnreadCount: Object.values(unreadCount).reduce((acc, count) => acc + count, 0) };
+      const totalUnreadCount = Object.values(unreadCount).reduce(
+        (acc, count) => acc + count,
+        0
+      );
+      return { userId: participant._id, unreadCount, totalUnreadCount };
+    })
+  );
+
+  const totalfilteredUsers = usersWithUnreadCounts.filter(
+    (user) => user !== null
+  );
+  io.emit("TotalUnreadCounts", totalfilteredUsers);
+};
+
+//อันนี้จำนวนแชทรวมเร็วมากกกก แต่แชทล่าสุดกับจำนวนแต่ละห้องไม่แสดง
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  socket.on("joinRoom", (roomId) => {
+    socket.join(roomId);
+    console.log(`User joined room: ${roomId}`);
+  });
+
+  socket.on("markAsRead", async ({ roomId, messageId, userId }) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        console.error(`Invalid userId: ${userId}`);
+        return;
+      }
+
+      const chatMessage = await Chat.findById(messageId);
+      if (chatMessage) {
+        const isAlreadyRead = chatMessage.readBy.some(
+          (readerId) => readerId.toString() === userId
+        );
+        if (!isAlreadyRead && chatMessage.sender.toString() !== userId) {
+          await Chat.findByIdAndUpdate(
+            messageId,
+            { $addToSet: { readBy: userId } },
+            { new: true }
+          );
+
+          // คำนวณ unreadCount สำหรับห้องทั้งหมดในครั้งเดียว
+          const unreadChats = await Chat.aggregate([
+            {
+              $match: {
+                roomId,
+                sender: { $ne: userId },
+                readBy: { $nin: [userId] },
+              },
+            },
+            {
+              $group: {
+                _id: "$roomId",
+                count: { $sum: 1 },
+              },
+            },
+          ]);
+
+          io.to(roomId).emit("readByUpdated", {
+            messageId,
+            readBy: [...chatMessage.readBy, userId],
+            unreadCount: unreadChats.length,
+          });
+
+          console.log(`Message ${messageId} marked as read by ${userId}`);
+
+          // ดึงข้อมูลผู้ใช้และคำนวณ unread counts โดยใช้ aggregate
+          const allParticipants = await User.aggregate([
+            { $match: { deletedAt: null } },
+            { $project: { name: 1, surname: 1, username: 1 } },
+          ]);
+
+          const allMPersonnel = await MPersonnel.aggregate([
+            { $match: { deletedAt: null } },
+            { $project: { name: 1, surname: 1, username: 1 } },
+          ]);
+
+          const totalParticipants = [...allParticipants, ...allMPersonnel];
+
+          // ใช้ aggregate เพื่อดึงข้อมูลห้องที่ผู้ใช้เป็นสมาชิก
+          const rooms = await Room.aggregate([
+            { $match: { "participants.id": { $in: totalParticipants.map((p) => p._id) } } },
+            { $unwind: "$participants" },
+            { $group: { _id: "$participants.id", rooms: { $push: "$roomId" } } },
+          ]);
+
+          // คำนวณ unread count ในแต่ละห้อง
+          const usersWithUnreadCounts = await Promise.all(
+            totalParticipants.map(async (participant) => {
+              const userRooms = rooms.find((room) => room._id.toString() === participant._id.toString())?.rooms || [];
+
+              if (userRooms.length === 0) return null;
+
+              let unreadCount = {};
+
+              const roomUnreadCounts = await Chat.aggregate([
+                {
+                  $match: {
+                    roomId: { $in: userRooms },
+                    readBy: { $ne: participant._id },
+                  },
+                },
+                {
+                  $group: {
+                    _id: "$roomId",
+                    count: { $sum: 1 },
+                  },
+                },
+              ]);
+
+              roomUnreadCounts.forEach((item) => {
+                unreadCount[item._id] = item.count;
+              });
+
+              const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
+
+              return { userId: participant._id, unreadCount, totalUnreadCount };
+            })
+          );
+
+          const filteredUsers = usersWithUnreadCounts.filter((user) => user !== null);
+          io.emit("TotalUnreadCounts", filteredUsers);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating readBy:", error);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("A user disconnected:", socket.id);
+  });
+});
+
+app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
+  try {
+    const { message, roomId, senderId, senderModel } = req.body;
+
+    if (message.length > 10000) {
+      return res.status(400).json({
+        success: false,
+        message: "Message exceeds the maximum length of 10000 characters.",
+      });
+    }
+
+    const sender = senderModel === "User"
+      ? await User.findById(senderId)
+      : await MPersonnel.findById(senderId);
+
+    if (!sender) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    let imageUrl = null, imageName = null, fileSize = null;
+    if (req.file) {
+      const { imageUrl: fileImageUrl, imageName: fileImageName, fileSize: uploadedFileSize } = await uploadFile(req.file);
+      imageUrl = fileImageUrl;
+      imageName = fileImageName;
+      fileSize = uploadedFileSize;
+    }
+
+    const newChat = new Chat({
+      message,
+      image: imageUrl,
+      imageName,
+      sender: sender._id,
+      senderModel,
+      roomId,
+      fileSize,
+      readBy: [senderId],
+    });
+
+    await newChat.save();
+    await newChat.populate("sender", "name surname");
+
+    io.to(roomId).emit("receiveMessage", newChat);
+
+    await updateUserChatsAndUnreadCounts();
+
+    res.json({
+      success: true,
+      message: "Chat message saved",
+      newChat,
+      imageUrl,
+      imageName,
+      fileSize,
+      roomId,
+      readBy: [senderId],
+    });
+  } catch (error) {
+    console.error("Error saving chat message:", error);
+    res.status(500).json({ success: false, message: "Error saving chat message" });
+  }
+});
+
+const uploadFile1 = async (file) => {
+  const bucket = admin.storage().bucket();
+  const fileName = `${Date.now()}_${file.originalname}`;
+  const fileObj = bucket.file(fileName);
+  const originalFileName = Buffer.from(file.originalname, "latin1").toString("utf8");
+
+  await fileObj.save(file.buffer, { metadata: { contentType: file.mimetype } });
+
+  const [metadata] = await fileObj.getMetadata();
+  const fileSize = metadata.size;
+  const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+
+  return { imageUrl, imageName: originalFileName, fileSize };
+};
+
+const updateUserChatsAndUnreadCountsเวอร์ไรวะ = async () => {
+  try {
+    // รวมข้อมูลของผู้ใช้ทั้งหมดทั้ง User และ MPersonnel
+    const allParticipants = await User.aggregate([
+      { $match: { deletedAt: null } },
+      { $project: { name: 1, surname: 1, username: 1, _id: 1 } }
+    ]);
+    const allMPersonnel = await MPersonnel.aggregate([
+      { $match: { deletedAt: null } },
+      { $project: { name: 1, surname: 1, username: 1, _id: 1 } }
+    ]);
+
+    const totalParticipants = [...allParticipants, ...allMPersonnel];
+
+    // คำนวณแชทล่าสุดและ unread count สำหรับผู้ใช้แต่ละคน
+    const usersWithChats = await Promise.all(totalParticipants.map(async (participant) => {
+      // ค้นหาห้องที่ผู้ใช้เป็นสมาชิก
+      const userRooms = await Room.aggregate([
+        { $match: { "participants.id": participant._id } },
+        { $unwind: "$participants" },
+        { $match: { "participants.id": participant._id } },
+        { $group: { _id: "$roomId" } }
+      ]);
+
+      if (userRooms.length === 0) return null;
+
+      // คำนวณแชทล่าสุด
+      const latestChat = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room._id) } } },
+        { $sort: { createdAt: -1 } },
+        { $limit: 1 },
+        {
+          $lookup: {
+            from: "users",
+            localField: "sender",
+            foreignField: "_id",
+            as: "senderDetails"
+          }
+        },
+        { $unwind: "$senderDetails" },
+        {
+          $project: {
+            message: 1,
+            image: 1,
+            senderId: "$senderDetails._id",
+            senderName: { $concat: ["$senderDetails.name", " ", "$senderDetails.surname"] },
+            createdAt: 1
+          }
+        }
+      ]);
+
+      // คำนวณ unread count สำหรับผู้ใช้ในห้องต่างๆ
+      const unreadCounts = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room._id) }, readBy: { $ne: participant._id } } },
+        { $group: { _id: "$roomId", count: { $sum: 1 } } }
+      ]);
+
+      const unreadCount = unreadCounts.reduce((acc, room) => {
+        acc[room._id] = room.count;
+        return acc;
+      }, {});
+
+      const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
+
+      return {
+        userId: participant._id,
+        latestChat,
+        unreadCount,
+        totalUnreadCount
+      };
     }));
 
-    const totalfilteredUsers = usersWithUnreadCounts.filter(r => r.status === "fulfilled").map(r => r.value);
-    io.emit("TotalUnreadCounts", totalfilteredUsers);
+    // กรองข้อมูลที่ไม่จำเป็นออก
+    const filteredUsersWithChats = usersWithChats.filter(user => user !== null);
+    io.emit("usersUpdated", filteredUsersWithChats);
+
+    // คำนวณ unread counts สำหรับทุกผู้ใช้
+    const usersWithUnreadCounts = await Promise.all(totalParticipants.map(async (participant) => {
+      const userRooms = await Room.aggregate([
+        { $match: { "participants.id": participant._id } },
+        { $unwind: "$participants" },
+        { $match: { "participants.id": participant._id } },
+        { $group: { _id: "$roomId" } }
+      ]);
+
+      if (userRooms.length === 0) return null;
+
+      let unreadCount = {};
+
+      const unreadCounts = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room._id) }, readBy: { $ne: participant._id } } },
+        { $group: { _id: "$roomId", count: { $sum: 1 } } }
+      ]);
+
+      unreadCounts.forEach((item) => {
+        unreadCount[item._id] = item.count;
+      });
+
+      const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
+
+      return {
+        userId: participant._id,
+        unreadCount,
+        totalUnreadCount
+      };
+    }));
+
+    // กรองผู้ใช้ที่ไม่มีข้อมูล
+    const totalFilteredUsers = usersWithUnreadCounts.filter(user => user !== null);
+    io.emit("TotalUnreadCounts", totalFilteredUsers);
+
+  } catch (error) {
+    console.error("Error updating unread counts and latest chats:", error);
+  }
+};
+
+
+const updateUserChatsAndUnreadCounts1 = async () => {
+  const updatedUsers = await User.find({ deletedAt: null }, "name surname username").lean();
+  const updatedMPersonnel = await MPersonnel.find({ deletedAt: null }, "name surname username").lean();
+  
+  const rooms = await Room.find({ "participants.id": { $in: updatedUsers.map(user => user._id) } }).lean();
+
+  // คำนวณแชทล่าสุดและจำนวน unread สำหรับผู้ใช้
+  const usersWithChats = await Promise.all(updatedUsers.map(async (user) => {
+    const userRooms = rooms.filter((room) =>
+      room.participants.some((p) => String(p.id) === String(user._id))
+    );
+
+    if (userRooms.length === 0) return null;
+
+    let latestChat = null;
+    let unreadCount = {};
+
+    for (const room of userRooms) {
+      const roomLatestChat = await Chat.findOne({ roomId: room.roomId }).sort({ createdAt: -1 }).populate("sender", "name surname").lean();
+      if (roomLatestChat) {
+        if (!latestChat || new Date(roomLatestChat.createdAt) > new Date(latestChat.createdAt)) {
+          latestChat = {
+            message: roomLatestChat.message,
+            file: roomLatestChat.image,
+            senderId: roomLatestChat.sender._id,
+            senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
+            createdAt: roomLatestChat.createdAt,
+          };
+        }
+      }
+
+      for (const participant of room.participants) {
+        const unreadCounts = await Chat.countDocuments({
+          roomId: room.roomId,
+          readBy: { $ne: participant.id },
+        });
+        unreadCount[participant.id] = unreadCounts;
+      }
+    }
+
+    return { _id: user._id, name: user.name, surname: user.surname, username: user.username, latestChat, unreadCount };
+  }));
+
+  const filteredUsers = usersWithChats.filter(user => user !== null);
+  // console.log("รวมusersUpdated:", filteredUsers);
+
+  io.emit("usersUpdated", filteredUsers);
+
+  // คำนวณ unread counts สำหรับผู้ใช้ทั้งหมด
+  const allParticipants = [...updatedUsers, ...updatedMPersonnel];
+  const totalrooms = await Room.find({
+    "participants.id": { $in: allParticipants.map(participant => participant._id) },
+  }).lean();
+
+  const usersWithUnreadCounts = await Promise.all(allParticipants.map(async (participant) => {
+    const userRooms = totalrooms.filter((room) =>
+      room.participants.some((p) => String(p.id) === String(participant._id))
+    );
+
+    if (userRooms.length === 0) return null;
+
+    let unreadCount = {};
+
+    for (const room of userRooms) {
+      const excludedUsers = await User.find({ deletedAt: { $ne: null } }).lean();
+      const excludedUserIds = excludedUsers.map(user => String(user._id));
+
+      if (excludedUserIds.includes(String(room.roomId))) continue;
+
+      const roomUnreadCount = await Chat.countDocuments({
+        roomId: room.roomId,
+        readBy: { $ne: participant._id },
+      });
+
+      unreadCount[room.roomId] = roomUnreadCount;
+    }
+
+    const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
+    return { userId: participant._id, unreadCount, totalUnreadCount };
+  }));
+
+  const totalfilteredUsers = usersWithUnreadCounts.filter(user => user !== null);
+  // console.log("รวมTotalUnreadCounts:", totalfilteredUsers);
+  io.emit("TotalUnreadCounts", totalfilteredUsers);
+};
+
+
+
+//เวอร์เก่าก่อนจะแก้ได้ 070368
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  socket.on("joinRoom", (roomId) => {
+    socket.join(roomId);
+    console.log(`User joined room: ${roomId}`);
+  });
+
+  socket.on("markAsRead", async ({ roomId, messageId, userId }) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        console.error(`Invalid userId: ${userId}`);
+        return;
+      }
+
+      const chatMessage = await Chat.findById(messageId);
+      if (chatMessage) {
+        const isAlreadyRead = chatMessage.readBy.some(
+          (readerId) => readerId.toString() === userId
+        );
+        if (!isAlreadyRead && chatMessage.sender.toString() !== userId) {
+          await Chat.findByIdAndUpdate(
+            messageId,
+            { $addToSet: { readBy: userId } },
+            { new: true }
+          );
+
+          // คำนวณ unreadCount สำหรับห้องทั้งหมดในครั้งเดียว
+          const unreadChats = await Chat.aggregate([
+            {
+              $match: {
+                roomId,
+                sender: { $ne: userId },
+                readBy: { $nin: [userId] },
+              },
+            },
+            {
+              $group: {
+                _id: "$roomId",
+                count: { $sum: 1 },
+              },
+            },
+          ]);
+
+          io.to(roomId).emit("readByUpdated", {
+            messageId,
+            readBy: [...chatMessage.readBy, userId],
+            unreadCount: unreadChats.length,
+          });
+
+          console.log(`Message ${messageId} marked as read by ${userId}`);
+
+          // ดึงข้อมูลผู้ใช้และคำนวณ unread counts โดยใช้ aggregate
+          const allParticipants = await User.aggregate([
+            { $match: { deletedAt: null } },
+            { $project: { name: 1, surname: 1, username: 1 } },
+          ]);
+
+          const allMPersonnel = await MPersonnel.aggregate([
+            { $match: { deletedAt: null } },
+            { $project: { name: 1, surname: 1, username: 1 } },
+          ]);
+
+          const totalParticipants = [...allParticipants, ...allMPersonnel];
+
+          // ใช้ aggregate เพื่อดึงข้อมูลห้องที่ผู้ใช้เป็นสมาชิก
+          const rooms = await Room.aggregate([
+            { $match: { "participants.id": { $in: totalParticipants.map((p) => p._id) } } },
+            { $unwind: "$participants" },
+            { $group: { _id: "$participants.id", rooms: { $push: "$roomId" } } },
+          ]);
+
+          // คำนวณ unread count ในแต่ละห้อง
+          const usersWithUnreadCounts = await Promise.all(
+            totalParticipants.map(async (participant) => {
+              const userRooms = rooms.find((room) => room._id.toString() === participant._id.toString())?.rooms || [];
+
+              if (userRooms.length === 0) return null;
+
+              let unreadCount = {};
+
+              const roomUnreadCounts = await Chat.aggregate([
+                {
+                  $match: {
+                    roomId: { $in: userRooms },
+                    readBy: { $ne: participant._id },
+                  },
+                },
+                {
+                  $group: {
+                    _id: "$roomId",
+                    count: { $sum: 1 },
+                  },
+                },
+              ]);
+
+              roomUnreadCounts.forEach((item) => {
+                unreadCount[item._id] = item.count;
+              });
+
+              const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
+
+              return { userId: participant._id, unreadCount, totalUnreadCount };
+            })
+          );
+
+          const filteredUsers = usersWithUnreadCounts.filter((user) => user !== null);
+          io.emit("TotalUnreadCounts", filteredUsers);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating readBy:", error);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("A user disconnected:", socket.id);
+  });
+});
+
+app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
+  try {
+    const { message, roomId, senderId, senderModel } = req.body;
+
+    // ตรวจสอบข้อความ
+    if (message.length > 10000) {
+      return res.status(400).json({
+        success: false,
+        message: "Message exceeds the maximum length of 10000 characters.",
+      });
+    }
+
+    // ดึงข้อมูลผู้ส่ง
+    const sender = senderModel === "User" 
+      ? await User.findById(senderId) 
+      : await MPersonnel.findById(senderId);
+
+    if (!sender) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // สร้างตัวแปรสำหรับไฟล์
+    let imageUrl = null, imageName = null, fileSize = null;
+
+    // อัปโหลดไฟล์หากมี
+    if (req.file) {
+      const { imageUrl: fileImageUrl, imageName: fileImageName, fileSize: uploadedFileSize } = await uploadFile(req.file);
+      imageUrl = fileImageUrl;
+      imageName = fileImageName;
+      fileSize = uploadedFileSize;
+    }
+
+    // สร้างข้อความแชทใหม่
+    const newChat = new Chat({
+      message,
+      image: imageUrl,
+      imageName,
+      sender: sender._id,
+      senderModel,
+      roomId,
+      fileSize,
+      readBy: [senderId],
+    });
+
+    await newChat.save();
+    await newChat.populate("sender", "name surname");
+
+    // กระจายข้อความแบบเรียลไทม์
+    io.to(roomId).emit("receiveMessage", newChat);
+
+    // อัปเดตผู้ใช้ที่เกี่ยวข้อง
+    await updateUserChatsAndUnreadCounts();
 
     res.json({
       success: true,
@@ -7929,3 +10054,303 @@ app.post("/sendchat", uploadimg.single("image"), async (req, res) => {
     res.status(500).json({ success: false, message: "Error saving chat message" });
   }
 });
+
+// ฟังก์ชันอัปโหลดไฟล์
+const uploadFile5 = async (file) => {
+  const bucket = admin.storage().bucket();
+  const fileName = `${Date.now()}_${file.originalname}`;
+  const fileObj = bucket.file(fileName);
+  const originalFileName = Buffer.from(file.originalname, "latin1").toString("utf8");
+
+  // อัปโหลดไฟล์ไปที่ Firebase
+  await fileObj.save(file.buffer, {
+    metadata: { contentType: file.mimetype },
+  });
+
+  const [metadata] = await fileObj.getMetadata();
+  const fileSize = metadata.size;
+  const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+
+  return { imageUrl, imageName: originalFileName, fileSize };
+};
+
+// ฟังก์ชันอัปเดตผู้ใช้ที่เกี่ยวข้องและจำนวนข้อความที่ยังไม่ได้อ่าน
+const updateUserChatsAndUnreadCounts5 = async () => {
+  const updatedUsers = await User.find({ deletedAt: null }, "name surname username").lean();
+  const updatedMPersonnel = await MPersonnel.find({ deletedAt: null }, "name surname username").lean();
+  
+  const rooms = await Room.find({ "participants.id": { $in: updatedUsers.map(user => user._id) } }).lean();
+
+  // คำนวณแชทล่าสุดและจำนวน unread สำหรับผู้ใช้
+  const usersWithChats = await Promise.all(updatedUsers.map(async (user) => {
+    const userRooms = rooms.filter((room) =>
+      room.participants.some((p) => String(p.id) === String(user._id))
+    );
+
+    if (userRooms.length === 0) return null;
+
+    let latestChat = null;
+    let unreadCount = {};
+
+    for (const room of userRooms) {
+      const roomLatestChat = await Chat.findOne({ roomId: room.roomId }).sort({ createdAt: -1 }).populate("sender", "name surname").lean();
+      if (roomLatestChat) {
+        if (!latestChat || new Date(roomLatestChat.createdAt) > new Date(latestChat.createdAt)) {
+          latestChat = {
+            message: roomLatestChat.message,
+            file: roomLatestChat.image,
+            senderId: roomLatestChat.sender._id,
+            senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
+            createdAt: roomLatestChat.createdAt,
+          };
+        }
+      }
+
+      for (const participant of room.participants) {
+        const unreadCounts = await Chat.countDocuments({
+          roomId: room.roomId,
+          readBy: { $ne: participant.id },
+        });
+        unreadCount[participant.id] = unreadCounts;
+      }
+    }
+
+    return { _id: user._id, name: user.name, surname: user.surname, username: user.username, latestChat, unreadCount };
+  }));
+
+  const filteredUsers = usersWithChats.filter(user => user !== null);
+  // console.log("รวมusersUpdated:", filteredUsers);
+
+  io.emit("usersUpdated", filteredUsers);
+
+  // คำนวณ unread counts สำหรับผู้ใช้ทั้งหมด
+  const allParticipants = [...updatedUsers, ...updatedMPersonnel];
+  const totalrooms = await Room.find({
+    "participants.id": { $in: allParticipants.map(participant => participant._id) },
+  }).lean();
+
+  const usersWithUnreadCounts = await Promise.all(allParticipants.map(async (participant) => {
+    const userRooms = totalrooms.filter((room) =>
+      room.participants.some((p) => String(p.id) === String(participant._id))
+    );
+
+    if (userRooms.length === 0) return null;
+
+    let unreadCount = {};
+
+    for (const room of userRooms) {
+      const excludedUsers = await User.find({ deletedAt: { $ne: null } }).lean();
+      const excludedUserIds = excludedUsers.map(user => String(user._id));
+
+      if (excludedUserIds.includes(String(room.roomId))) continue;
+
+      const roomUnreadCount = await Chat.countDocuments({
+        roomId: room.roomId,
+        readBy: { $ne: participant._id },
+      });
+
+      unreadCount[room.roomId] = roomUnreadCount;
+    }
+
+    const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
+    return { userId: participant._id, unreadCount, totalUnreadCount };
+  }));
+
+  const totalfilteredUsers = usersWithUnreadCounts.filter(user => user !== null);
+  // console.log("รวมTotalUnreadCounts:", totalfilteredUsers);
+  io.emit("TotalUnreadCounts", totalfilteredUsers);
+};
+
+//ver เก่า
+
+app.get("/users", async (req, res) => {
+  try {
+    const userId = req.query.senderId;
+    const updatedUsers = await User.find(
+      { deletedAt: null },
+      "name surname username"
+    ).lean();
+
+    const rooms = await Room.find({
+      "participants.id": { $in: updatedUsers.map((user) => user._id) },
+    }).lean();
+
+    const usersWithChats = await Promise.all(
+      updatedUsers.map(async (user) => {
+
+        if (!user) return null;
+
+        const userRooms = rooms.filter((room) =>
+          room.participants.some((p) => String(p.id) === String(user._id))
+        );
+
+        if (userRooms.length === 0) {
+          return null;
+        }
+
+        let latestChat = null;
+        let unreadCount = {};
+
+        for (const room of userRooms) {
+          // ดึงแชทล่าสุดในห้อง
+          const roomLatestChat = await Chat.findOne({ roomId: room.roomId })
+            .sort({ createdAt: -1 })
+            .populate("sender", "name")
+            .lean();
+
+          if (roomLatestChat) {
+            if (
+              !latestChat ||
+              new Date(roomLatestChat.createdAt) >
+                new Date(latestChat.createdAt)
+            ) {
+              latestChat = {
+                message: roomLatestChat.message,
+                file: roomLatestChat.image,
+                senderId: roomLatestChat.sender._id,
+                // senderName: `${roomLatestChat.sender.name} ${roomLatestChat.sender.surname}`,
+                senderName: `${roomLatestChat.sender.name}`,
+                createdAt: roomLatestChat.createdAt,
+              };
+            }
+          }
+
+          for (const participant of room.participants) {
+            const unreadCounts = await Chat.countDocuments({
+              roomId: room.roomId,
+              readBy: { $ne: participant.id }, 
+            });
+
+            unreadCount[participant.id] = unreadCounts;
+          }
+        }
+
+        return {
+          _id: user._id,
+          name: user.name,
+          surname: user.surname,
+          username: user.username,
+          latestChat,
+          unreadCount,
+        };
+      })
+    );
+    const filteredUsers = usersWithChats.filter((user) => user !== null);
+    console.log("📦 Filtered Users with Chats777:", filteredUsers);
+    res.json({ success: true, users: filteredUsers });
+  } catch (error) {
+    console.error("Error fetching users with chats:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching users with chats",
+    });
+  }
+});
+
+
+
+const updateUser = async () => {
+  try {
+    // ดึงข้อมูลผู้ใช้ทั้งหมด
+    const updatedUsers = await User.find({ deletedAt: null }, "name surname username").lean();
+    const updatedMPersonnel = await MPersonnel.find({ deletedAt: null }, "name surname username").lean();
+    const allParticipants = [...updatedUsers, ...updatedMPersonnel];
+
+    // ดึงห้องที่ผู้ใช้ทั้งหมดเข้าร่วม
+    const rooms = await Room.find({
+      "participants.id": { $in: allParticipants.map(participant => participant._id) },
+      $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }] 
+    }).lean();
+
+    // คำนวณ unreadCount และแชทล่าสุด
+    const usersWithChats = await Promise.all(updatedUsers.map(async (user) => {
+      const userRooms = rooms.filter((room) =>
+        room.participants.some((p) => String(p.id) === String(user._id))
+      );
+
+      if (userRooms.length === 0) return null;
+
+      let latestChat = null;
+      let unreadCount = {};
+
+      // ดึงแชทล่าสุดในแต่ละห้อง
+      const roomChats = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room.roomId) } } },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: "$roomId", latestChat: { $first: "$$ROOT" } } }
+      ]);
+
+      // Loop ทุก chat ที่ได้รับ
+      for (const chat of roomChats) {
+        // คำนวณ unread count สำหรับแต่ละ participant ในห้อง
+        for (const participant of userRooms.find(room => String(room.roomId) === String(chat._id)).participants) {
+          unreadCount[participant.id] = await Chat.countDocuments({
+            roomId: chat._id,
+            readBy: { $ne: participant.id }  // ตรวจสอบว่า participant ยังไม่ได้อ่าน
+          });
+        }
+
+        // หาข้อความล่าสุดในห้อง
+        if (!latestChat || new Date(chat.latestChat.createdAt) > new Date(latestChat.createdAt)) {
+         
+          const sender = await User.findById(chat.latestChat.sender._id) || await MPersonnel.findById(chat.latestChat.sender._id);
+
+          // หากไม่พบ sender
+          const senderName = sender ? `${sender.name || 'ไม่ทราบชื่อ'} ${sender.surname || 'ไม่ทราบนามสกุล'}` : 'ไม่ทราบชื่อ ไม่ทราบนามสกุล';
+          latestChat = {
+            message: chat.latestChat.message,
+            file: chat.latestChat.image,
+            senderId: chat.latestChat.sender._id,
+            senderName: senderName,            
+            createdAt: chat.latestChat.createdAt
+          };
+        }
+      }
+
+      return { _id: user._id, name: user.name, surname: user.surname, username: user.username, latestChat, unreadCount };
+    }));
+
+    const filteredUsers = usersWithChats.filter(user => user !== null);
+    console.log("รวมusersUpdated:", filteredUsers);
+    io.emit("usersUpdated", filteredUsers);
+
+    // คำนวณ totalUnreadCount สำหรับผู้ใช้ทั้งหมด
+    const usersWithUnreadCounts = await Promise.all(allParticipants.map(async (participant) => {
+      const userRooms = await Room.aggregate([
+        { $match: { "participants.id": participant._id, 
+          $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }]
+        } },
+        { $unwind: "$participants" },
+        { $match: { "participants.id": participant._id } },
+        { $group: { _id: "$roomId" } }
+      ]);
+
+      if (userRooms.length === 0) return null;
+
+      let unreadCount = {};
+
+      const unreadCounts = await Chat.aggregate([
+        { $match: { roomId: { $in: userRooms.map(room => room._id) }, 
+          readBy: { $ne: participant._id } } },
+        { $group: { _id: "$roomId", count: { $sum: 1 } } }
+      ]);
+
+      unreadCounts.forEach((item) => {
+        unreadCount[item._id] = item.count;
+      });
+
+      const totalUnreadCount = Object.values(unreadCount).reduce((acc, count) => acc + count, 0);
+
+      return {
+        userId: participant._id,
+        unreadCount,
+        totalUnreadCount
+      };
+    }));
+    const totalfilteredUsers = usersWithUnreadCounts.filter(user => user !== null);
+    io.emit("TotalUnreadCounts", totalfilteredUsers);
+
+  } catch (error) {
+    console.error("Error updating user chats and unread counts:", error);
+  }
+};
